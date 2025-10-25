@@ -2,6 +2,7 @@
 
 namespace Qd\SchemaBundle\Controller;
 
+use Doctrine\DBAL\ParameterType;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -56,9 +57,27 @@ final class CommentApiController
         $user = $this->security->getUser()?->getEmail() ?? "Unknown";
 
         $createdAt = date('Y-m-d H:i:s');
-        $this->em->getConnection()->executeQuery(
-            "insert into qd_schema_comment (entity_fqcn, body, is_system, created_at, updated_at, author) values (:entityFqcn, :body, :isSystem, :createdAt, :updatedAt, :author)",
-            ['entityFqcn' => $entityFqcn, 'body' => $body, 'isSystem' => 0, 'createdAt' => $createdAt, 'updatedAt' => $createdAt, 'author' => $user]
+        $now = (new \DateTimeImmutable())->format('Y-m-d H:i:s');
+
+        $this->em->getConnection()->executeStatement(
+            "INSERT INTO qd_schema_comment (entity_fqcn, body, is_system, created_at, updated_at, author)
+     VALUES (:entityFqcn, :body, :isSystem, :createdAt, :updatedAt, :author)",
+            [
+                'entityFqcn' => (string) $entityFqcn,
+                'body'       => (string) $body,
+                'isSystem'   => 0,
+                'createdAt'  => $now,
+                'updatedAt'  => $now,
+                'author'     => (string) $user,
+            ],
+            [
+                'entityFqcn' => ParameterType::STRING,
+                'body'       => ParameterType::STRING,
+                'isSystem'   => ParameterType::INTEGER,   // << clé !
+                'createdAt'  => ParameterType::STRING,
+                'updatedAt'  => ParameterType::STRING,
+                'author'     => ParameterType::STRING,
+            ]
         );
 
         $lastInsertId = $this->em->getConnection()->lastInsertId();
