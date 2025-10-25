@@ -27,14 +27,29 @@ const transform = ref({ x: 0, y: 0, k: 1 })
 const showMinimap = ref(true)
 const groupByNamespace = ref(true)
 
+// Performance: Debounce helper
+function debounce(fn, delay) {
+  let timeoutId
+  return function(...args) {
+    clearTimeout(timeoutId)
+    timeoutId = setTimeout(() => fn.apply(this, args), delay)
+  }
+}
+
 // D3 selections
 let svg, g, link, node, nodeGroup, linkGroup, zoom
 
 onMounted(() => {
   initGraph()
-  watch(() => props.entities, () => {
+
+  // Performance: Debounce graph updates to avoid too many re-renders
+  const debouncedUpdate = debounce(() => {
     updateGraph()
-  }, { deep: true })
+  }, 100)
+
+  watch(() => props.entities, () => {
+    debouncedUpdate()
+  }, { deep: false }) // Shallow watch for better performance
 
   watch(() => props.focusedEntity, (newFocus) => {
     handleFocusChange(newFocus)
@@ -82,6 +97,9 @@ function initGraph() {
 
 function updateGraph() {
   if (!simulation.value) return
+
+  // Performance: Clear connection cache when graph updates
+  connectionCache.clear()
 
   const width = containerRef.value.clientWidth
   const height = containerRef.value.clientHeight
@@ -140,7 +158,8 @@ function updateGraph() {
       // Start from bottom of source card
       const sourceNode = nodes.find(n => n.id === d.source)
       if (!sourceNode) return 0
-      const fieldsToShow = Math.max(5, Math.min(sourceNode.fields.length, 8))
+      // Performance: Max 5 fields
+      const fieldsToShow = Math.min(sourceNode.fields.length, 5)
       const cardHeight = 80 + fieldsToShow * 22
       return sourceNode.y + cardHeight - 40 // Bottom of card
     })
@@ -181,7 +200,8 @@ function updateGraph() {
     .attr('class', 'node-bg')
     .attr('width', 220)
     .attr('height', d => {
-      const fieldsToShow = Math.max(5, Math.min(d.fields.length, 8))
+      // Performance: Show max 5 fields
+      const fieldsToShow = Math.min(d.fields.length, 5)
       return 80 + fieldsToShow * 22
     })
     .attr('x', -110)
@@ -231,10 +251,12 @@ function updateGraph() {
     .attr('font-size', '11px')
     .text(d => d.table || '')
 
-  // Fields list
+  // Fields list - OPTIMIZED: Reduce initial field display for performance
   nodeElements.each(function(d) {
     const node = d3.select(this)
-    const fieldsToShow = Math.max(5, Math.min(d.fields.length, 8))
+
+    // Performance: Show fewer fields initially (max 5 instead of 8)
+    const fieldsToShow = Math.min(d.fields.length, 5)
     const fields = d.fields.slice(0, fieldsToShow)
 
     // Remove old fields
@@ -326,20 +348,32 @@ function ticked() {
 // Drag disabled for fixed layout
 // function drag(simulation) { ... }
 
+// Performance: Cache connected nodes to avoid recalculation
+let connectionCache = new Map()
+
 function highlightConnections(selectedNode) {
-  const connectedIds = new Set()
-  connectedIds.add(selectedNode.id) // Add the hovered node itself
+  const cacheKey = selectedNode.id
 
-  // First pass: identify all connected nodes
-  link.each(d => {
-    const sourceId = typeof d.source === 'object' ? d.source.id : d.source
-    const targetId = typeof d.target === 'object' ? d.target.id : d.target
+  // Check cache first
+  if (!connectionCache.has(cacheKey)) {
+    const connectedIds = new Set()
+    connectedIds.add(selectedNode.id)
 
-    if (sourceId === selectedNode.id || targetId === selectedNode.id) {
-      connectedIds.add(sourceId)
-      connectedIds.add(targetId)
-    }
-  })
+    // First pass: identify all connected nodes
+    link.each(d => {
+      const sourceId = typeof d.source === 'object' ? d.source.id : d.source
+      const targetId = typeof d.target === 'object' ? d.target.id : d.target
+
+      if (sourceId === selectedNode.id || targetId === selectedNode.id) {
+        connectedIds.add(sourceId)
+        connectedIds.add(targetId)
+      }
+    })
+
+    connectionCache.set(cacheKey, connectedIds)
+  }
+
+  const connectedIds = connectionCache.get(cacheKey)
 
   // Update links: reduce opacity for non-connected, keep normal for connected
   link

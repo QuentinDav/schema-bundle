@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, watch, onMounted } from 'vue'
+import { computed, ref, watch, onMounted, onUnmounted } from 'vue'
 import { useSchemaStore } from '@/stores/schema'
 import SchemaGraph from '@/components/SchemaGraph.vue'
 import Icon from '@/components/Icon.vue'
@@ -11,6 +11,11 @@ const searchQuery = ref('')
 const showSearchDropdown = ref(false)
 const showRelationsOnly = ref(false)
 const selectedNamespace = ref('')
+
+// Performance: Pagination for large datasets
+const currentPage = ref(1)
+const itemsPerPage = ref(50) // Show max 50 tables at once for performance
+const showPagination = computed(() => !searchQuery.value && !selectedEntity.value && schemaStore.schemaEntities.length > itemsPerPage.value)
 
 // Compute available namespaces
 const namespaces = computed(() => {
@@ -80,34 +85,57 @@ const filteredEntities = computed(() => {
   return entities
 })
 
+// Paginated entities for rendering (performance optimization for 443+ tables)
+const paginatedEntities = computed(() => {
+  const entities = filteredEntities.value
+
+  // If searching or viewing specific entity, don't paginate
+  if (searchQuery.value || selectedEntity.value) {
+    return entities
+  }
+
+  // Apply pagination for large datasets
+  const start = (currentPage.value - 1) * itemsPerPage.value
+  const end = start + itemsPerPage.value
+  return entities.slice(start, end)
+})
+
+const totalPages = computed(() => {
+  if (searchQuery.value || selectedEntity.value) return 1
+  return Math.ceil(filteredEntities.value.length / itemsPerPage.value)
+})
+
+const canGoNext = computed(() => currentPage.value < totalPages.value)
+const canGoPrev = computed(() => currentPage.value > 1)
+
+function nextPage() {
+  if (canGoNext.value) {
+    currentPage.value++
+  }
+}
+
+function prevPage() {
+  if (canGoPrev.value) {
+    currentPage.value--
+  }
+}
+
+function goToPage(page) {
+  currentPage.value = Math.max(1, Math.min(page, totalPages.value))
+}
+
+// Reset to page 1 when filters change
+watch([searchQuery, selectedNamespace, showRelationsOnly], () => {
+  currentPage.value = 1
+})
+
 // Note: Auto-fit functionality is handled by SchemaGraph component
 
 
 
-// Get all entities related to selected entity
+// Get all entities related to selected entity (optimized with store cache)
 const getRelatedEntities = (entity) => {
-  const relatedIds = new Set()
-  relatedIds.add(entity.fqcn || entity.name)
-
-  // Find all entities that this entity has relations to
-  if (entity.relations) {
-    entity.relations.forEach(relation => {
-      relatedIds.add(relation.target)
-    })
-  }
-
-  // Find all entities that have relations to this entity
-  schemaStore.schemaEntities.forEach(e => {
-    if (e.relations) {
-      e.relations.forEach(rel => {
-        if (rel.target === entity.fqcn || rel.target === entity.name) {
-          relatedIds.add(e.fqcn || e.name)
-        }
-      })
-    }
-  })
-
-  return schemaStore.schemaEntities.filter(e => relatedIds.has(e.fqcn || e.name))
+  return schemaStore.getRelatedEntities(entity.fqcn || entity.name)
 }
 
 // Search results for dropdown
@@ -123,7 +151,7 @@ const searchResults = computed(() => {
     .slice(0, 5) // Limit to 5 results
 })
 
-// Compute relations between filtered entities
+// Compute relations between paginated entities (optimized)
 const relations = computed(() => {
   const rels = []
 
@@ -133,22 +161,29 @@ const relations = computed(() => {
     return []
   }
 
-  // Otherwise, show relations between filtered entities
-  filteredEntities.value.forEach((entity) => {
+  // Use paginated entities instead of filtered for better performance
+  const visibleEntities = paginatedEntities.value
+  const visibleEntityIds = new Set(visibleEntities.map(e => e.fqcn || e.name))
+
+  // Build a map for faster lookups
+  const entityMap = new Map(visibleEntities.map(e => [e.fqcn || e.name, e]))
+
+  // Only compute relations between visible entities
+  visibleEntities.forEach((entity) => {
     if (entity.relations) {
       entity.relations.forEach((relation) => {
-        const target = filteredEntities.value.find(
-          (e) => e.name === relation.target || e.fqcn === relation.target,
-        )
-
-        if (target) {
-          rels.push({
-            from: entity,
-            to: target,
-            field: relation.field,
-            type: relation.type,
-            isOwning: relation.isOwning,
-          })
+        // Only show relations where both entities are visible
+        if (visibleEntityIds.has(relation.target)) {
+          const target = entityMap.get(relation.target)
+          if (target) {
+            rels.push({
+              from: entity,
+              to: target,
+              field: relation.field,
+              type: relation.type,
+              isOwning: relation.isOwning,
+            })
+          }
         }
       })
     }
@@ -193,7 +228,7 @@ function handleClickOutside(event) {
       <div class="controls-left">
         <!-- Stats Badge -->
         <div class="stats-badge">
-          <span class="stat-number">{{ filteredEntities.length }}</span>
+          <span class="stat-number">{{ paginatedEntities.length }}</span>
           <span class="stat-label">/ {{ schemaStore.schemaEntities.length }} tables</span>
         </div>
         <!-- Advanced Search -->
@@ -251,18 +286,47 @@ function handleClickOutside(event) {
     <div class="schema-canvas">
       <SchemaGraph
         v-if="viewMode === 'force'"
-        :entities="filteredEntities"
+        :entities="paginatedEntities"
         :relations="relations"
         :focused-entity="null"
         @entity-click="handleEntityClick"
       />
 
-      <div v-if="filteredEntities.length === 0" class="empty-state">
+      <div v-if="paginatedEntities.length === 0" class="empty-state">
         <Icon name="database" :size="64" class="empty-icon" />
         <h3>No tables found</h3>
         <p>Try adjusting your filters or search query</p>
         <button @click="clearSearch" class="btn-clear-filters">
           Clear filters
+        </button>
+      </div>
+
+      <!-- Pagination Controls -->
+      <div v-if="showPagination" class="pagination-controls">
+        <button
+          @click="prevPage"
+          :disabled="!canGoPrev"
+          class="pagination-btn"
+          :class="{ disabled: !canGoPrev }"
+        >
+          <Icon name="chevron-left" :size="20" />
+        </button>
+
+        <div class="pagination-info">
+          <span class="page-number">Page {{ currentPage }} / {{ totalPages }}</span>
+          <span class="page-range">
+            ({{ (currentPage - 1) * itemsPerPage + 1 }}-{{ Math.min(currentPage * itemsPerPage, filteredEntities.length) }}
+            of {{ filteredEntities.length }})
+          </span>
+        </div>
+
+        <button
+          @click="nextPage"
+          :disabled="!canGoNext"
+          class="pagination-btn"
+          :class="{ disabled: !canGoNext }"
+        >
+          <Icon name="chevron-right" :size="20" />
         </button>
       </div>
     </div>
@@ -583,6 +647,69 @@ function handleClickOutside(event) {
   box-shadow: var(--shadow-md);
 }
 
+/* Pagination Controls */
+.pagination-controls {
+  position: absolute;
+  bottom: var(--spacing-6);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-4);
+  background: white;
+  padding: var(--spacing-3) var(--spacing-6);
+  border-radius: var(--radius-full);
+  box-shadow: var(--shadow-xl);
+  border: 1px solid var(--color-gray-200);
+  z-index: 20;
+}
+
+.pagination-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background: var(--color-primary-500);
+  color: white;
+  border: none;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: all var(--transition-base);
+}
+
+.pagination-btn:hover:not(.disabled) {
+  background: var(--color-primary-600);
+  transform: scale(1.1);
+  box-shadow: var(--shadow-md);
+}
+
+.pagination-btn.disabled {
+  background: var(--color-gray-200);
+  color: var(--color-gray-400);
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.pagination-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-0-5);
+  min-width: 180px;
+}
+
+.page-number {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-gray-900);
+}
+
+.page-range {
+  font-size: var(--text-xs);
+  color: var(--color-gray-500);
+}
+
 @media (max-width: 1280px) {
   .controls-bar {
     flex-wrap: wrap;
@@ -599,6 +726,24 @@ function handleClickOutside(event) {
 
   .search-container {
     min-width: 100%;
+  }
+
+  .pagination-controls {
+    bottom: var(--spacing-4);
+    padding: var(--spacing-2) var(--spacing-4);
+    gap: var(--spacing-2);
+  }
+
+  .pagination-info {
+    min-width: 140px;
+  }
+
+  .page-number {
+    font-size: var(--text-xs);
+  }
+
+  .page-range {
+    font-size: 10px;
   }
 }
 </style>
