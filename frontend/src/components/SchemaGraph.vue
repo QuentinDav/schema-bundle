@@ -36,6 +36,10 @@ function debounce(fn, delay) {
   }
 }
 
+// Hover state management to prevent flickering
+let hoverTimeout = null
+let currentHoveredNode = null
+
 // D3 selections
 let svg, g, link, node, nodeGroup, linkGroup, zoom
 
@@ -185,11 +189,30 @@ function updateGraph() {
       emit('entity-click', d)
     })
     .on('mouseenter', (event, d) => {
-      emit('entity-hover', d)
-      highlightConnections(d)
+      // Clear any pending hover timeout
+      if (hoverTimeout) {
+        clearTimeout(hoverTimeout)
+        hoverTimeout = null
+      }
+
+      // Only highlight if we're hovering a different node
+      if (currentHoveredNode !== d.id) {
+        currentHoveredNode = d.id
+        emit('entity-hover', d)
+        highlightConnections(d)
+      }
     })
     .on('mouseleave', () => {
-      resetHighlights()
+      // Debounce the reset to prevent flickering when moving between nodes
+      if (hoverTimeout) {
+        clearTimeout(hoverTimeout)
+      }
+
+      hoverTimeout = setTimeout(() => {
+        currentHoveredNode = null
+        resetHighlights()
+        hoverTimeout = null
+      }, 50) // 50ms delay before resetting
     })
 
   // Node background

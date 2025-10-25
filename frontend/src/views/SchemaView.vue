@@ -155,12 +155,6 @@ const searchResults = computed(() => {
 const relations = computed(() => {
   const rels = []
 
-  // If there's a selected entity and "Related tables only" is NOT checked
-  // Don't show any relations (only the table itself)
-  if (selectedEntity.value && !showRelationsOnly.value) {
-    return []
-  }
-
   // Use paginated entities instead of filtered for better performance
   const visibleEntities = paginatedEntities.value
   const visibleEntityIds = new Set(visibleEntities.map(e => e.fqcn || e.name))
