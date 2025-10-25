@@ -13,8 +13,6 @@ final class VersioningService
     }
 
     /**
-     * Get the next semantic version based on the last release and change type
-     *
      * @param string $type 'major', 'minor', or 'patch'
      * @return string The next version (e.g., "v1.2.3")
      */
@@ -37,8 +35,6 @@ final class VersioningService
     }
 
     /**
-     * Auto-detect the version type based on changes
-     *
      * @param array $summary Summary with added_entities and changed_entities
      * @return string 'major', 'minor', or 'patch'
      */
@@ -48,24 +44,17 @@ final class VersioningService
         $changedEntities = $summary['changed_entities'] ?? 0;
         $totalEntities = $summary['total_entities'] ?? 0;
 
-        // Major: More than 20% of entities changed or removed
-        // (We'll need to pass removed entities in the future)
         if ($changedEntities > 0 && ($changedEntities / max($totalEntities, 1)) > 0.2) {
             return 'major';
         }
 
-        // Minor: New entities added
         if ($addedEntities > 0) {
             return 'minor';
         }
 
-        // Patch: Small changes to existing entities
         return 'patch';
     }
 
-    /**
-     * Get the last version from the database
-     */
     private function getLastVersion(): ?string
     {
         $lastRelease = $this->em->getRepository(Release::class)
@@ -79,8 +68,6 @@ final class VersioningService
     }
 
     /**
-     * Parse a semantic version string
-     *
      * @return array [major, minor, patch]
      */
     private function parseVersion(string $version): array
@@ -98,17 +85,12 @@ final class VersioningService
         ];
     }
 
-    /**
-     * Validate if a version string is valid semantic versioning
-     */
     public function isValidVersion(string $version): bool
     {
         return (bool)preg_match('/^v?\d+\.\d+\.\d+$/', $version);
     }
 
     /**
-     * Get suggested version with explanation
-     *
      * @return array ['version' => 'v1.2.0', 'type' => 'minor', 'reason' => '2 entities added']
      */
     public function getSuggestedVersion(array $summary): array

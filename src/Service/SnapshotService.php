@@ -17,10 +17,6 @@ class SnapshotService
     )
     {
     }
-
-    /**
-     * Create a new release with snapshots of all entities
-     */
     public function createRelease(string $name, ?string $description = null): array
     {
         $conn = $this->em->getConnection();
@@ -62,13 +58,11 @@ class SnapshotService
                 $release->addSnapshot($snap);
                 $snapshotCount++;
 
-                // Track changes
                 if ($diffResult === null) {
                     $added[] = $fqcn;
                 } elseif ($prev && !$this->diff->isEmpty($diffResult)) {
                     $changed[] = $fqcn;
 
-                    // Create system comments for changes
                     $msg = $this->diff->toSystemComment($diffResult);
                     foreach ($msg as $m) {
                         $conn->insert('qd_schema_comment', [

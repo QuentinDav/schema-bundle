@@ -21,7 +21,6 @@ final class SchemaDocController
 
     public function asset(string $path): BinaryFileResponse|Response
     {
-        // Fallback SPA: /schema-doc/<route client>
         if (!str_contains($path, '.')) {
             $index = $this->kernel->locateResource('@QdSchemaBundle/Resources/public/schema/index.html');
             return new Response(file_get_contents($index));
@@ -36,7 +35,6 @@ final class SchemaDocController
 
         $response = new BinaryFileResponse($file);
 
-        // Forcer le bon Content-Type (évite "text/plain")
         $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
         $map = [
             'css'  => 'text/css',

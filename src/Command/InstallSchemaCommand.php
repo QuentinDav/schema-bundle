@@ -1,4 +1,5 @@
 <?php
+
 namespace Qd\SchemaBundle\Command;
 
 use Doctrine\ORM\EntityManagerInterface;
@@ -15,7 +16,7 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 
 #[AsCommand(
     name: 'qd:schema:install',
-    description: 'Crée les tables QD Schema si elles n’existent pas (sans toucher aux tables métier).'
+    description: 'Creates the QD Schema tables if they do not already exist (without modifying business tables).'
 )]
 final class InstallSchemaCommand extends Command
 {
@@ -27,8 +28,8 @@ final class InstallSchemaCommand extends Command
     protected function configure(): void
     {
         $this
-            ->addOption('dry-run', null, InputOption::VALUE_NONE, 'Affiche le SQL sans exécuter')
-            ->addOption('force', null, InputOption::VALUE_NONE, 'Exécute le SQL (création)');
+            ->addOption('dry-run', null, InputOption::VALUE_NONE, 'Show the SQL statements without executing them.')
+            ->addOption('force', null, InputOption::VALUE_NONE, 'Execute the SQL statements to create the tables.');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -37,16 +38,9 @@ final class InstallSchemaCommand extends Command
         $conn = $this->em->getConnection();
         $sm   = $conn->createSchemaManager();
 
-        // 1) Tables cibles du bundle
-        $wantedTables = [
-            $this->em->getClassMetadata(Comment::class)->getTableName(),
-            $this->em->getClassMetadata(Snapshot::class)->getTableName(),
-            $this->em->getClassMetadata(Release::class)->getTableName(),
-        ];
-
-        // 2) On ne crée que ce qui manque
         $existing = array_map('strtolower', $sm->listTableNames());
         $toCreateMetas = [];
+
         foreach ([Comment::class, Snapshot::class, Release::class] as $class) {
             $meta = $this->em->getClassMetadata($class);
             if (!in_array(strtolower($meta->getTableName()), $existing, true)) {
@@ -55,7 +49,7 @@ final class InstallSchemaCommand extends Command
         }
 
         if (!$toCreateMetas) {
-            $io->success('✅ Les tables QD Schema existent déjà. Rien à faire.');
+            $io->success('All QD Schema tables already exist. No action required.');
             return Command::SUCCESS;
         }
 
@@ -63,23 +57,23 @@ final class InstallSchemaCommand extends Command
         $sqls = $tool->getCreateSchemaSql($toCreateMetas);
 
         if ($input->getOption('dry-run') && !$input->getOption('force')) {
-            $io->section('SQL à exécuter');
+            $io->section('SQL statements to execute');
             foreach ($sqls as $sql) {
-                $io->writeln($sql.';');
+                $io->writeln($sql . ';');
             }
-            $io->note('Exécute avec --force pour appliquer.');
+            $io->note('Run this command with --force to execute the statements.');
             return Command::SUCCESS;
         }
 
         if (!$input->getOption('force')) {
-            $io->warning('Aucune modification effectuée (ajoute --force pour créer les tables).');
+            $io->warning('No changes have been applied. Use the --force option to create the tables.');
             return Command::INVALID;
         }
 
-        // 3) Exécuter
-        $io->section('Création des tables manquantes…');
+        // Execute the SQL statements
+        $io->section('Creating missing QD Schema tables...');
         $tool->createSchema($toCreateMetas);
-        $io->success('✅ Tables QD Schema créées avec succès.');
+        $io->success('QD Schema tables created successfully.');
 
         return Command::SUCCESS;
     }

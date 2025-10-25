@@ -22,10 +22,6 @@ final class ReleaseApiController
     ) {
     }
 
-    /**
-     * GET /schema-doc/api/releases
-     * List all releases with summary statistics
-     */
     public function list(): JsonResponse
     {
         $repo = $this->em->getRepository(Release::class);
@@ -51,16 +47,8 @@ final class ReleaseApiController
         return new JsonResponse(['releases' => $data]);
     }
 
-    /**
-     * GET /schema-doc/api/releases/suggested-version
-     * Get suggested next version based on pending changes
-     */
     public function suggestedVersion(): JsonResponse
     {
-        // We need to peek at what changes would be made
-        // For now, return next minor version as default
-        // In a real scenario, we'd analyze pending changes
-
         $nextVersion = $this->versioningService->getNextVersion('minor');
 
         return new JsonResponse([
@@ -75,10 +63,6 @@ final class ReleaseApiController
         ]);
     }
 
-    /**
-     * POST /schema-doc/api/releases
-     * Create a new release with automatic versioning
-     */
     public function create(Request $request): JsonResponse
     {
         $payload = json_decode($request->getContent(), true);
@@ -86,7 +70,6 @@ final class ReleaseApiController
         $description = $payload['description'] ?? null;
 
         try {
-            // First, create the release to get the summary
             $name = $this->versioningService->getNextVersion(
                 $versionType === 'auto' ? 'minor' : $versionType
             );
@@ -102,10 +85,6 @@ final class ReleaseApiController
 
             $result = $this->snapshotService->createRelease($name, $description);
 
-            // If auto-detection was requested and we have the summary,
-            // we could potentially recreate with the correct version
-            // but for simplicity, we'll keep the current approach
-
             return new JsonResponse($result);
         } catch (\Throwable $e) {
             return new JsonResponse([
@@ -115,10 +94,6 @@ final class ReleaseApiController
         }
     }
 
-    /**
-     * GET /schema-doc/api/releases/{id}
-     * Get detailed information about a release including all snapshots
-     */
     public function get(int $id): JsonResponse
     {
         $release = $this->em->getRepository(Release::class)->find($id);
@@ -146,7 +121,6 @@ final class ReleaseApiController
 
             $snapshots[] = $snapData;
 
-            // Categorize entities
             if ($snapshot->getDiffJson() === null) {
                 $addedEntities[] = $snapData;
             } elseif ($this->isDiffEmpty($snapshot->getDiffJson())) {
@@ -172,10 +146,6 @@ final class ReleaseApiController
         ]);
     }
 
-    /**
-     * GET /schema-doc/api/releases/compare/{id1}/{id2}
-     * Compare two releases
-     */
     public function compare(int $id1, int $id2): JsonResponse
     {
         $release1 = $this->em->getRepository(Release::class)->find($id1);
@@ -185,7 +155,6 @@ final class ReleaseApiController
             return new JsonResponse(['message' => 'One or both releases not found'], 404);
         }
 
-        // Group snapshots by entity FQCN
         $snapshots1 = [];
         foreach ($release1->getSnapshots() as $snap) {
             $snapshots1[$snap->getEntityFqcn()] = $snap;
@@ -210,27 +179,23 @@ final class ReleaseApiController
             $snap2 = $snapshots2[$fqcn] ?? null;
 
             if (!$snap1 && $snap2) {
-                // Entity added in release 2
                 $addedEntities[] = [
                     'entity_fqcn' => $fqcn,
                     'entity_name' => $entityName,
                     'schema' => $snap2->getSchemaJson(),
                 ];
             } elseif ($snap1 && !$snap2) {
-                // Entity removed in release 2
                 $removedEntities[] = [
                     'entity_fqcn' => $fqcn,
                     'entity_name' => $entityName,
                 ];
             } elseif ($snap1 && $snap2) {
-                // Entity exists in both, check if modified
                 if ($snap1->getSchemaHash() === $snap2->getSchemaHash()) {
                     $unchangedEntities[] = [
                         'entity_fqcn' => $fqcn,
                         'entity_name' => $entityName,
                     ];
                 } else {
-                    // Calculate diff between the two snapshots
                     $diff = $this->schemaDiff->diff($snap1->getSchemaJson(), $snap2->getSchemaJson());
 
                     $modifiedEntities[] = [
@@ -269,13 +234,8 @@ final class ReleaseApiController
         ]);
     }
 
-    /**
-     * GET /schema-doc/api/snapshots/entity/{fqcn}
-     * Get full history of a specific entity across all releases
-     */
     public function entityHistory(string $fqcn): JsonResponse
     {
-        // Decode the FQCN (URL encoded)
         $fqcn = urldecode($fqcn);
 
         $snapshots = $this->em->getRepository(Snapshot::class)
@@ -309,10 +269,6 @@ final class ReleaseApiController
         ]);
     }
 
-    /**
-     * GET /schema-doc/api/releases/{id}/export/markdown
-     * Export release notes as Markdown
-     */
     public function exportMarkdown(int $id): Response
     {
         $release = $this->em->getRepository(Release::class)->find($id);
@@ -359,7 +315,6 @@ final class ReleaseApiController
         $md[] = "- **Added:** {$summary['added_entities']}";
         $md[] = "";
 
-        // Categorize entities
         $addedEntities = [];
         $changedEntities = [];
         $unchangedEntities = [];
@@ -382,7 +337,6 @@ final class ReleaseApiController
             }
         }
 
-        // Added Entities
         if (!empty($addedEntities)) {
             $md[] = "## ✨ New Entities";
             $md[] = "";
@@ -419,7 +373,6 @@ final class ReleaseApiController
             }
         }
 
-        // Modified Entities
         if (!empty($changedEntities)) {
             $md[] = "## 🔧 Modified Entities";
             $md[] = "";
@@ -428,7 +381,6 @@ final class ReleaseApiController
                 $md[] = "";
                 $diff = $entity['diff'];
 
-                // Fields Added
                 if (!empty($diff['fields_added'])) {
                     $md[] = "**Fields Added:**";
                     foreach ($diff['fields_added'] as $field) {
@@ -441,7 +393,6 @@ final class ReleaseApiController
                     $md[] = "";
                 }
 
-                // Fields Removed
                 if (!empty($diff['fields_removed'])) {
                     $md[] = "**Fields Removed:**";
                     foreach ($diff['fields_removed'] as $field) {
@@ -450,7 +401,6 @@ final class ReleaseApiController
                     $md[] = "";
                 }
 
-                // Fields Changed
                 if (!empty($diff['fields_changed'])) {
                     $md[] = "**Fields Modified:**";
                     foreach ($diff['fields_changed'] as $change) {
@@ -482,7 +432,6 @@ final class ReleaseApiController
                     $md[] = "";
                 }
 
-                // Relations Added
                 if (!empty($diff['rels_added'])) {
                     $md[] = "**Relations Added:**";
                     foreach ($diff['rels_added'] as $rel) {
@@ -497,7 +446,6 @@ final class ReleaseApiController
                     $md[] = "";
                 }
 
-                // Relations Removed
                 if (!empty($diff['rels_removed'])) {
                     $md[] = "**Relations Removed:**";
                     foreach ($diff['rels_removed'] as $rel) {
@@ -506,7 +454,6 @@ final class ReleaseApiController
                     $md[] = "";
                 }
 
-                // Relations Changed
                 if (!empty($diff['rels_changed'])) {
                     $md[] = "**Relations Modified:**";
                     foreach ($diff['rels_changed'] as $change) {
@@ -540,7 +487,6 @@ final class ReleaseApiController
             }
         }
 
-        // Footer
         $md[] = "---";
         $md[] = "";
         $md[] = "*Generated by QD Schema Bundle*";
