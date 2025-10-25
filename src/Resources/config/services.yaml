@@ -1,0 +1,28 @@
+services:
+  Qd\SchemaBundle\:
+    resource: '../../'
+    exclude:
+      - '../../Resources/'
+      - '../../Entity/'
+    autowire: true
+    autoconfigure: true
+
+  Qd\SchemaBundle\Controller\:
+    resource: '../../Controller/'
+    public: true
+    autowire: true
+    autoconfigure: true
+    tags: ['controller.service_arguments']
+
+  Qd\SchemaBundle\Service\:
+    resource: '../../Service/'
+    autowire: true
+    autoconfigure: true
+    public: false
+
+  Qd\SchemaBundle\Command\:
+    resource: '../../Command/'
+    autowire: true
+    autoconfigure: true
+    public: true
+    tags: ['console.command']

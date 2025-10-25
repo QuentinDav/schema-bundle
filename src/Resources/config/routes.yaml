@@ -1,0 +1,71 @@
+qd_schema_doc:
+  path: /schema-doc
+  controller: Qd\SchemaBundle\Controller\SchemaDocController::index
+
+qd_schema_api:
+  path: /schema-doc/api/schema
+  methods: [GET]
+  controller: Qd\SchemaBundle\Controller\SchemaApiController::schema
+
+qd_comment_get_api:
+  path: /schema-doc/api/comments
+  methods: [GET]
+  controller: Qd\SchemaBundle\Controller\CommentApiController::get
+
+qd_comment_post_api:
+  path: /schema-doc/api/comments
+  methods: [ POST ]
+  controller: Qd\SchemaBundle\Controller\CommentApiController::post
+
+qd_comment_delete_api:
+  path: /schema-doc/api/comments/{id}
+  methods: [ DELETE ]
+  controller: Qd\SchemaBundle\Controller\CommentApiController::delete
+
+qd_snapshot_create_api:
+  path: /schema-doc/api/snapshot
+  methods: [ GET ]
+  controller: Qd\SchemaBundle\Controller\SnapshotApiController::create
+
+qd_releases_list:
+  path: /schema-doc/api/releases
+  controller: Qd\SchemaBundle\Controller\ReleaseApiController::list
+  methods: [GET]
+
+qd_releases_suggested_version:
+  path: /schema-doc/api/releases/suggested-version
+  controller: Qd\SchemaBundle\Controller\ReleaseApiController::suggestedVersion
+  methods: [GET]
+
+qd_releases_create:
+  path: /schema-doc/api/releases
+  controller: Qd\SchemaBundle\Controller\ReleaseApiController::create
+  methods: [POST]
+
+qd_releases_get:
+  path: /schema-doc/api/releases/{id}
+  controller: Qd\SchemaBundle\Controller\ReleaseApiController::get
+  methods: [GET]
+
+qd_releases_export_markdown:
+  path: /schema-doc/api/releases/{id}/export/markdown
+  controller: Qd\SchemaBundle\Controller\ReleaseApiController::exportMarkdown
+  methods: [GET]
+
+qd_releases_compare:
+  path: /schema-doc/api/releases/compare/{id1}/{id2}
+  controller: Qd\SchemaBundle\Controller\ReleaseApiController::compare
+  methods: [GET]
+
+qd_snapshots_entity_history:
+  path: /schema-doc/api/snapshots/entity/{fqcn}
+  controller: Qd\SchemaBundle\Controller\ReleaseApiController::entityHistory
+  methods: [GET]
+  requirements:
+    fqcn: '.+'
+
+qd_schema_assets:
+  path: /schema-doc/{path}
+  requirements:
+    path: '(?!api/).+'
+  controller: Qd\SchemaBundle\Controller\SchemaDocController::asset
