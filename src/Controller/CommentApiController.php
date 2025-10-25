@@ -58,7 +58,7 @@ final class CommentApiController
         $createdAt = date('Y-m-d H:i:s');
         $this->em->getConnection()->executeQuery(
             "insert into qd_schema_comment (entity_fqcn, body, is_system, created_at, updated_at, author) values (:entityFqcn, :body, :isSystem, :createdAt, :updatedAt, :author)",
-            ['entityFqcn' => $entityFqcn, 'body' => $body, 'isSystem' => false, 'createdAt' => $createdAt, 'updatedAt' => $createdAt, 'author' => $user]
+            ['entityFqcn' => $entityFqcn, 'body' => $body, 'isSystem' => 0, 'createdAt' => $createdAt, 'updatedAt' => $createdAt, 'author' => $user]
         );
 
         $lastInsertId = $this->em->getConnection()->lastInsertId();
