@@ -73,7 +73,7 @@ final class CommentApiController
             [
                 'entityFqcn' => ParameterType::STRING,
                 'body'       => ParameterType::STRING,
-                'isSystem'   => ParameterType::INTEGER,   // << clé !
+                'isSystem'   => ParameterType::INTEGER,
                 'createdAt'  => ParameterType::STRING,
                 'updatedAt'  => ParameterType::STRING,
                 'author'     => ParameterType::STRING,
