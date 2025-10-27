@@ -6,3 +6,4 @@
 /CHANGELOG.md export-ignore
 
 src/Resources/public/schema/** linguist-vendored linguist-generated
+frontend/** linguist-vendored linguist-generated
