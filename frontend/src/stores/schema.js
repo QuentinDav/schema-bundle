@@ -1,8 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed, shallowRef } from 'vue'
 
-// Helper to convert relation type number to name
-// 1: OneToOne, 2: OneToMany, 3: ManyToOne, 4: ManyToMany
 export function getRelationTypeName(type) {
   const types = {
     1: 'OneToOne',
@@ -13,7 +11,6 @@ export function getRelationTypeName(type) {
   return types[type] || 'Unknown'
 }
 
-// Memoization helper for expensive computations
 function memoize(fn) {
   const cache = new Map()
   return (...args) => {
@@ -27,7 +24,6 @@ function memoize(fn) {
   }
 }
 
-// Build relation index for fast lookups
 function buildRelationIndex(entities) {
   const index = new Map()
 
@@ -38,7 +34,6 @@ function buildRelationIndex(entities) {
       incoming: []
     }
 
-    // Outgoing relations (from this entity)
     if (entity.relations) {
       entity.relations.forEach(rel => {
         relations.outgoing.push({
@@ -53,7 +48,6 @@ function buildRelationIndex(entities) {
     index.set(entityId, relations)
   })
 
-  // Incoming relations (to this entity)
   entities.forEach(entity => {
     if (entity.relations) {
       entity.relations.forEach(rel => {
@@ -74,18 +68,15 @@ function buildRelationIndex(entities) {
 }
 
 export const useSchemaStore = defineStore('schema', () => {
-  // State
   const entities = ref([])
   const loading = ref(false)
   const error = ref(null)
   const selectedEntity = ref(null)
-  const focusedEntity = ref(null) // For schema view focus mode
+  const focusedEntity = ref(null)
   const searchQuery = ref('')
 
-  // Performance: Relation index cache
   const relationIndex = shallowRef(null)
 
-  // Getters
   const filteredEntities = computed(() => {
     if (!searchQuery.value) return entities.value
 
@@ -114,20 +105,16 @@ export const useSchemaStore = defineStore('schema', () => {
     }, 0)
   })
 
-  // Entities to display in schema (with focus mode support)
   const schemaEntities = computed(() => {
     if (!focusedEntity.value) return filteredEntities.value
 
-    // Get related entity names
     const relatedEntityNames = new Set()
     relatedEntityNames.add(focusedEntity.value.name)
 
-    // Add all entities that are targets of relations
     focusedEntity.value.relations?.forEach((rel) => {
       relatedEntityNames.add(rel.target)
     })
 
-    // Add all entities that have relations pointing to the focused entity
     entities.value.forEach((entity) => {
       entity.relations?.forEach((rel) => {
         if (rel.target === focusedEntity.value.name) {
@@ -139,7 +126,6 @@ export const useSchemaStore = defineStore('schema', () => {
     return filteredEntities.value.filter((e) => relatedEntityNames.has(e.name))
   })
 
-  // Get related entities for a given entity (optimized with index)
   function getRelatedEntities(entityId) {
     if (!relationIndex.value) {
       relationIndex.value = buildRelationIndex(entities.value)
@@ -151,12 +137,10 @@ export const useSchemaStore = defineStore('schema', () => {
     const relatedIds = new Set()
     relatedIds.add(entityId)
 
-    // Add outgoing relations
     relations.outgoing.forEach(rel => {
       relatedIds.add(rel.target)
     })
 
-    // Add incoming relations
     relations.incoming.forEach(rel => {
       relatedIds.add(rel.source)
     })
@@ -164,7 +148,6 @@ export const useSchemaStore = defineStore('schema', () => {
     return entities.value.filter(e => relatedIds.has(e.fqcn || e.name))
   }
 
-  // Actions
   async function fetchSchema() {
     loading.value = true
     error.value = null
@@ -176,29 +159,10 @@ export const useSchemaStore = defineStore('schema', () => {
       const data = await res.json()
       entities.value = data.entities || []
 
-      // Build relation index for fast lookups
       relationIndex.value = buildRelationIndex(entities.value)
     } catch (e) {
       error.value = e.message
       console.error('Error fetching schema:', e)
-    } finally {
-      loading.value = false
-    }
-  }
-
-  async function reloadSnapshot()
-  {
-    loading.value = true
-    error.value = null
-
-    try {
-      const res = await fetch('/schema-doc/api/snapshot')
-      if(!res.ok) throw new Error('API error')
-
-      await fetchSchema()
-    } catch (e) {
-      error.value = e.message
-      console.error('Error reload snapshot:', e)
     } finally {
       loading.value = false
     }
@@ -225,7 +189,6 @@ export const useSchemaStore = defineStore('schema', () => {
   }
 
   return {
-    // State
     entities,
     loading,
     error,
@@ -234,7 +197,6 @@ export const useSchemaStore = defineStore('schema', () => {
     searchQuery,
     relationIndex,
 
-    // Getters
     filteredEntities,
     schemaEntities,
     getEntityById,
@@ -242,14 +204,12 @@ export const useSchemaStore = defineStore('schema', () => {
     totalFields,
     totalRelations,
 
-    // Actions
     fetchSchema,
     selectEntity,
     clearSelection,
     focusEntity,
     clearFocus,
     setSearchQuery,
-    reloadSnapshot,
     getRelatedEntities
   }
 })

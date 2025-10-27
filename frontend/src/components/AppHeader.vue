@@ -50,7 +50,7 @@ function handleReleaseCreated(result) {
           </svg>
         </div>
         <div class="header-title">
-          <h1>DB Schema Viewer</h1>
+          <h1>Schema Doc</h1>
           <p class="subtitle">Visualize your database schema</p>
         </div>
       </div>
@@ -94,7 +94,6 @@ function handleReleaseCreated(result) {
       </div>
     </div>
 
-    <!-- Success Toast -->
     <Transition name="toast">
       <div v-if="showReleaseSuccess" class="success-toast">
         Release created successfully!
@@ -102,7 +101,6 @@ function handleReleaseCreated(result) {
     </Transition>
   </header>
 
-  <!-- Create Release Modal -->
   <CreateReleaseModal
     v-if="showCreateModal"
     @close="showCreateModal = false"
@@ -114,7 +112,7 @@ function handleReleaseCreated(result) {
 .app-header {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
-  padding: 1.5rem 2rem;
+  padding: 1.5rem 1rem;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   position: sticky;
   top: 0;

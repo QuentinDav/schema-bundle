@@ -13,6 +13,7 @@ const commentsStore = useCommentsStore()
 onMounted(() => {
   schemaStore.fetchSchema()
   commentsStore.fetchComments()
+  commentsStore.fetchUsers()
 })
 </script>
 

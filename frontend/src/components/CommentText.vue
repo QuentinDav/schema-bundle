@@ -9,19 +9,16 @@ const props = defineProps({
   isSystem: false
 })
 
-// Parse the comment text and identify mentions (@username) and fields ([[fieldname]])
 const parsedContent = computed(() => {
   const parts = []
   const isSystem = props.isSystem
   const text = props.text
   let lastIndex = 0
 
-  // Regex to match @username (mentions) or [[fieldname]] (fields)
   const regex = /(@\w+)|(\[\[(\w+)\]\])/g
   let match
 
   while ((match = regex.exec(text)) !== null) {
-    // Add text before the match
     if (match.index > lastIndex) {
       parts.push({
         type: 'text',
@@ -30,19 +27,16 @@ const parsedContent = computed(() => {
       })
     }
 
-    // Add the matched mention or field
     if (match[1]) {
-      // @username mention
       parts.push({
         type: 'mention',
         content: match[1],
         isSystem
       })
     } else if (match[2]) {
-      // [[fieldname]] reference - display just the fieldname
       parts.push({
         type: 'field',
-        content: match[3], // Just the field name without brackets
+        content: match[3],
         isSystem
       })
     }
@@ -50,7 +44,6 @@ const parsedContent = computed(() => {
     lastIndex = regex.lastIndex
   }
 
-  // Add remaining text
   if (lastIndex < text.length) {
     parts.push({
       type: 'text',

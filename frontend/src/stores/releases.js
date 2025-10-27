@@ -4,16 +4,14 @@ import { useToastStore } from './toast'
 
 export const useReleasesStore = defineStore('releases', () => {
   const toastStore = useToastStore()
-  // State
   const releases = ref([])
-  const currentRelease = ref(null) // null = live schema, otherwise release object
-  const selectedReleaseDetail = ref(null) // Full detail of selected release
-  const compareReleases = ref(null) // {release1, release2, diff}
-  const entityHistory = ref(null) // History of specific entity
+  const currentRelease = ref(null)
+  const selectedReleaseDetail = ref(null)
+  const compareReleases = ref(null)
+  const entityHistory = ref(null)
   const loading = ref(false)
   const error = ref(null)
 
-  // Getters
   const isLiveMode = computed(() => currentRelease.value === null)
 
   const sortedReleases = computed(() => {
@@ -22,7 +20,6 @@ export const useReleasesStore = defineStore('releases', () => {
     )
   })
 
-  // Actions
   async function fetchReleases() {
     loading.value = true
     error.value = null
@@ -56,7 +53,6 @@ export const useReleasesStore = defineStore('releases', () => {
       if (!res.ok) throw new Error('Failed to create release')
       const result = await res.json()
 
-      // Refresh releases list
       await fetchReleases()
 
       toastStore.success(`Release ${result.release_name} created successfully`)
@@ -156,7 +152,6 @@ export const useReleasesStore = defineStore('releases', () => {
   }
 
   return {
-    // State
     releases,
     currentRelease,
     selectedReleaseDetail,
@@ -165,11 +160,9 @@ export const useReleasesStore = defineStore('releases', () => {
     loading,
     error,
 
-    // Getters
     isLiveMode,
     sortedReleases,
 
-    // Actions
     fetchReleases,
     createRelease,
     fetchReleaseDetail,

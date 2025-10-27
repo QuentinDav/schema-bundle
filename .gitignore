@@ -17,3 +17,6 @@ composer.lock
 /frontend/.cache/
 /frontend/dist/
 /frontend/.env*
+
+# Release scripts (local only)
+/release.sh

@@ -38,10 +38,15 @@ class SnapshotService
                 $schema = $this->extractor->extractEntity($fqcn);
                 $hash = SchemaExtractor::stableHash($schema);
 
-                $prev = $conn->executeQuery(
-                    'SELECT schema_json FROM qd_schema_snapshot WHERE entity_fqcn = :f ORDER BY created_at DESC LIMIT 1',
-                    ['f' => $fqcn]
-                )->fetchAssociative();
+                $qb = $conn->createQueryBuilder();
+                $prev = $qb->select('schema_json')
+                    ->from('qd_schema_snapshot')
+                    ->where('entity_fqcn = :f')
+                    ->orderBy('created_at', 'DESC')
+                    ->setMaxResults(1)
+                    ->setParameter('f', $fqcn)
+                    ->executeQuery()
+                    ->fetchAssociative();
 
                 $diffResult = $prev
                     ? $this->diff->diff(json_decode($prev['schema_json'], true), $schema)
@@ -96,72 +101,4 @@ class SnapshotService
             throw $e;
         }
     }
-
-    /**
-     * @deprecated Use createRelease() instead
-     */
-    public function snapshotAll(): array
-    {
-        $conn = $this->em->getConnection();
-        $factory = $this->em->getMetadataFactory();
-        $metas = $factory->getAllMetadata();
-
-        $changed = [];
-        $created = 0;
-
-        $conn->beginTransaction();
-        try {
-            foreach ($metas as $meta) {
-                $fqcn = $meta->getName();
-
-                $schema = $this->extractor->extractEntity($fqcn);
-                $hash = SchemaExtractor::stableHash($schema);
-
-                $prev = $conn->executeQuery(
-                    'SELECT schema_json FROM qd_schema_snapshot WHERE entity_fqcn = :f ORDER BY created_at DESC LIMIT 1',
-                    ['f' => $fqcn]
-                )->fetchAssociative();
-
-                $diff = $prev
-                    ? $this->diff->diff(json_decode($prev['schema_json'], true), $schema)
-                    : ['fields_added' => [], 'fields_removed' => [], 'fields_changed' => [], 'rels_added' => [], 'rels_removed' => [], 'rels_changed' => []];
-
-                $snap = new \Qd\SchemaBundle\Entity\Snapshot(
-                    $fqcn, $schema, $hash, $prev ? $diff : null,
-                    $this->security->getUser()?->getUserIdentifier()
-                );
-                $this->em->persist($snap);
-                $created++;
-
-                if ($prev && !$this->diff->isEmpty($diff)) {
-                    $msg = $this->diff->toSystemComment($diff);
-                    foreach ($msg as $m) {
-                        $conn->insert('qd_schema_comment', [
-                            'entity_fqcn' => $fqcn,
-                            'body' => "Schéma mis à jour: $m",
-                            'author' => 'system',
-                            'is_system' => 1,
-                            'created_at' => (new \DateTimeImmutable())->format('Y-m-d H:i:s'),
-                            'updated_at' => (new \DateTimeImmutable())->format('Y-m-d H:i:s'),
-                        ]);
-                        $changed[] = $fqcn;
-                    }
-                }
-            }
-
-            $this->em->flush();
-            $conn->commit();
-
-            return [
-                'ok' => true,
-                'snapshots' => $created,
-                'changed' => $changed,
-                'countChanged' => count($changed),
-            ];
-        } catch (\Throwable $e) {
-            $conn->rollBack();
-            throw $e;
-        }
-    }
-
 }

@@ -22,11 +22,6 @@ qd_comment_delete_api:
   methods: [ DELETE ]
   controller: Qd\SchemaBundle\Controller\CommentApiController::delete
 
-qd_snapshot_create_api:
-  path: /schema-doc/api/snapshot
-  methods: [ GET ]
-  controller: Qd\SchemaBundle\Controller\SnapshotApiController::create
-
 qd_releases_list:
   path: /schema-doc/api/releases
   controller: Qd\SchemaBundle\Controller\ReleaseApiController::list
@@ -56,6 +51,11 @@ qd_releases_compare:
   path: /schema-doc/api/releases/compare/{id1}/{id2}
   controller: Qd\SchemaBundle\Controller\ReleaseApiController::compare
   methods: [GET]
+
+qd_users_get:
+  path: /schema-doc/api/users
+  controller: Qd\SchemaBundle\Controller\UserApiController::get
+  methods: [ GET ]
 
 qd_snapshots_entity_history:
   path: /schema-doc/api/snapshots/entity/{fqcn}

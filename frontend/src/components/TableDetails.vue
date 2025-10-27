@@ -56,10 +56,10 @@ function getFieldIcon(field) {
 
 function getRelationTypeColor(type) {
   const colors = {
-    1: '#10b981', // OneToOne
-    2: '#3b82f6', // ManyToOne
-    4: '#f59e0b', // OneToMany
-    8: '#ef4444', // ManyToMany
+    1: '#10b981',
+    2: '#3b82f6',
+    4: '#f59e0b',
+    8: '#ef4444',
   }
   return colors[type] || '#6b7280'
 }

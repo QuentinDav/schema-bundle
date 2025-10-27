@@ -7,7 +7,7 @@ const emit = defineEmits(['close', 'created'])
 
 const releasesStore = useReleasesStore()
 
-const versionType = ref('minor') // 'major', 'minor', 'patch'
+const versionType = ref('minor')
 const description = ref('')
 const isSubmitting = ref(false)
 const errorMessage = ref(null)
@@ -51,7 +51,7 @@ async function handleSubmit() {
 
   try {
     const result = await releasesStore.createRelease(
-      null, // name will be auto-generated
+      null,
       description.value.trim() || null,
       versionType.value
     )
@@ -88,7 +88,6 @@ function handleClose() {
           </p>
 
           <form @submit.prevent="handleSubmit">
-            <!-- Version Selection -->
             <div class="form-group">
               <label>Version Type</label>
               <div class="version-options">
@@ -118,13 +117,11 @@ function handleClose() {
               </div>
             </div>
 
-            <!-- Selected Version Display -->
             <div class="selected-version-display">
               <Icon name="sparkles" :size="20" />
               <span>Release will be created as: <strong>{{ selectedVersion }}</strong></span>
             </div>
 
-            <!-- Description -->
             <div class="form-group">
               <label for="release-description">Description (optional)</label>
               <textarea
@@ -447,22 +444,6 @@ function handleClose() {
   to {
     transform: rotate(360deg);
   }
-}
-
-/* Modal transitions */
-.modal-enter-active,
-.modal-leave-active {
-  transition: opacity 0.3s ease;
-}
-
-.modal-enter-active .modal-content,
-.modal-leave-active .modal-content {
-  transition: transform 0.3s ease;
-}
-
-.modal-enter-from,
-.modal-leave-to {
-  opacity: 0;
 }
 
 .modal-enter-from .modal-content {

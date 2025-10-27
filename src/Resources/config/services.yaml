@@ -4,6 +4,7 @@ services:
     exclude:
       - '../../Resources/'
       - '../../Entity/'
+      - '../../Dto/'
     autowire: true
     autoconfigure: true
 

@@ -6,7 +6,7 @@ import EntityDiff from '@/components/EntityDiff.vue'
 
 const releasesStore = useReleasesStore()
 
-const view = ref('timeline') // 'timeline', 'detail', 'compare', 'entity-history'
+const view = ref('timeline')
 const selectedRelease1 = ref(null)
 const selectedRelease2 = ref(null)
 const isCompareMode = ref(false)
@@ -64,7 +64,6 @@ function exportMarkdown(releaseId) {
   window.open(url, '_blank')
 }
 
-// Filtered and grouped releases for timeline
 const filteredReleases = computed(() => {
   let releases = releasesStore.sortedReleases
 
@@ -109,7 +108,6 @@ const groupedReleases = computed(() => {
     groups[groupKey].push(release)
   })
 
-  // Return in specific order
   const orderedGroups = []
   const order = ['Today', 'Yesterday', 'This Week', 'This Month', 'Last 3 Months', 'Older']
 
@@ -415,6 +413,8 @@ const groupedReleases = computed(() => {
 
 <style scoped>
 .releases-view {
+  height: 100%;
+  overflow-y: auto;
   padding: 2rem;
   max-width: 1400px;
   margin: 0 auto;

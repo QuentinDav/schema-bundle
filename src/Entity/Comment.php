@@ -43,5 +43,4 @@ class Comment
         $this->createdAt = new \DateTimeImmutable('now');
     }
 
-    // getters/setters au besoin…
 }

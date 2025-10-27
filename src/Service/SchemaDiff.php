@@ -33,8 +33,11 @@ final class SchemaDiff
         ];
     }
 
-    public function isEmpty(array $diff): bool
+    public function isEmpty(?array $diff): bool
     {
+        if ($diff === null) {
+            return true;
+        }
         foreach ($diff as $k=>$v) if (!empty($v)) return false;
         return true;
     }

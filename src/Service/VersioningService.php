@@ -72,10 +72,8 @@ final class VersioningService
      */
     private function parseVersion(string $version): array
     {
-        // Remove 'v' prefix if present
         $version = ltrim($version, 'vV');
 
-        // Split by dots
         $parts = explode('.', $version);
 
         return [

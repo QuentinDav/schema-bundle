@@ -130,7 +130,6 @@ function getRelationChangedProperties(from, to) {
     </div>
 
     <div v-if="isExpanded" class="diff-details">
-      <!-- Added Fields -->
       <div v-if="diff.fields_added?.length > 0" class="diff-section">
         <h5 class="section-title added">
           <Icon name="plus" :size="16" />
@@ -147,7 +146,6 @@ function getRelationChangedProperties(from, to) {
         </div>
       </div>
 
-      <!-- Removed Fields -->
       <div v-if="diff.fields_removed?.length > 0" class="diff-section">
         <h5 class="section-title removed">
           <Icon name="minus" :size="16" />
@@ -163,7 +161,6 @@ function getRelationChangedProperties(from, to) {
         </div>
       </div>
 
-      <!-- Modified Fields -->
       <div v-if="diff.fields_changed?.length > 0" class="diff-section">
         <h5 class="section-title modified">
           <Icon name="arrow-path" :size="16" />
@@ -184,7 +181,6 @@ function getRelationChangedProperties(from, to) {
         </div>
       </div>
 
-      <!-- Added Relations -->
       <div v-if="diff.rels_added?.length > 0" class="diff-section">
         <h5 class="section-title added">
           <Icon name="plus" :size="16" />
@@ -202,7 +198,6 @@ function getRelationChangedProperties(from, to) {
         </div>
       </div>
 
-      <!-- Removed Relations -->
       <div v-if="diff.rels_removed?.length > 0" class="diff-section">
         <h5 class="section-title removed">
           <Icon name="minus" :size="16" />
@@ -218,7 +213,6 @@ function getRelationChangedProperties(from, to) {
         </div>
       </div>
 
-      <!-- Modified Relations -->
       <div v-if="diff.rels_changed?.length > 0" class="diff-section">
         <h5 class="section-title modified">
           <Icon name="arrow-path" :size="16" />
@@ -240,7 +234,6 @@ function getRelationChangedProperties(from, to) {
         </div>
       </div>
 
-      <!-- No Changes -->
       <div v-if="!hasChanges()" class="no-changes">
         <Icon name="check" :size="24" />
         <p>No changes detected</p>

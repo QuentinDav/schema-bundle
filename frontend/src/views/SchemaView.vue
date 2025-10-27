@@ -12,12 +12,10 @@ const showSearchDropdown = ref(false)
 const showRelationsOnly = ref(false)
 const selectedNamespace = ref('')
 
-// Performance: Pagination for large datasets
 const currentPage = ref(1)
-const itemsPerPage = ref(50) // Show max 50 tables at once for performance
+const itemsPerPage = ref(50)
 const showPagination = computed(() => !searchQuery.value && !selectedEntity.value && schemaStore.schemaEntities.length > itemsPerPage.value)
 
-// Compute available namespaces
 const namespaces = computed(() => {
   const ns = new Set()
   schemaStore.schemaEntities.forEach(entity => {
@@ -27,7 +25,6 @@ const namespaces = computed(() => {
   return Array.from(ns).sort()
 })
 
-// Auto-select first namespace on mount
 onMounted(() => {
   if (namespaces.value.length > 0) {
     selectedNamespace.value = namespaces.value[0]
@@ -36,9 +33,7 @@ onMounted(() => {
   document.addEventListener('keydown', handleKeyboardShortcut)
 })
 
-// Keyboard shortcuts
 function handleKeyboardShortcut(event) {
-  // Cmd+K or Ctrl+K to focus search
   if ((event.metaKey || event.ctrlKey) && event.key === 'k') {
     event.preventDefault()
     const searchInput = document.querySelector('.search-input')
@@ -48,7 +43,6 @@ function handleKeyboardShortcut(event) {
   }
 }
 
-// Get selected entity (from search or focus)
 const selectedEntity = computed(() => {
   if (!searchQuery.value) return null
 
@@ -59,22 +53,17 @@ const selectedEntity = computed(() => {
   )
 })
 
-// Filtered entities based on search and namespace
 const filteredEntities = computed(() => {
   let entities = schemaStore.schemaEntities
 
-  // If there's a selected entity (from search)
   if (selectedEntity.value) {
     if (showRelationsOnly.value) {
-      // Show selected entity + all related entities
       entities = getRelatedEntities(selectedEntity.value)
     } else {
-      // Show ONLY the selected entity
       entities = [selectedEntity.value]
     }
   }
 
-  // Filter by namespace
   if (selectedNamespace.value) {
     entities = entities.filter(entity => {
       const ns = extractNamespace(entity.fqcn || entity.name)
@@ -85,16 +74,13 @@ const filteredEntities = computed(() => {
   return entities
 })
 
-// Paginated entities for rendering (performance optimization for 443+ tables)
 const paginatedEntities = computed(() => {
   const entities = filteredEntities.value
 
-  // If searching or viewing specific entity, don't paginate
   if (searchQuery.value || selectedEntity.value) {
     return entities
   }
 
-  // Apply pagination for large datasets
   const start = (currentPage.value - 1) * itemsPerPage.value
   const end = start + itemsPerPage.value
   return entities.slice(start, end)
@@ -124,21 +110,44 @@ function goToPage(page) {
   currentPage.value = Math.max(1, Math.min(page, totalPages.value))
 }
 
-// Reset to page 1 when filters change
 watch([searchQuery, selectedNamespace, showRelationsOnly], () => {
   currentPage.value = 1
 })
 
-// Note: Auto-fit functionality is handled by SchemaGraph component
-
-
-
-// Get all entities related to selected entity (optimized with store cache)
 const getRelatedEntities = (entity) => {
-  return schemaStore.getRelatedEntities(entity.fqcn || entity.name)
+  if (!entity || !entity.relations) {
+    return [entity]
+  }
+
+  const relatedSet = new Set()
+  const allEntities = schemaStore.schemaEntities
+
+  const entityMapByFqcn = new Map(allEntities.map(e => [e.fqcn || e.name, e]))
+  const entityMapByName = new Map(allEntities.map(e => [e.name, e]))
+
+  relatedSet.add(entity)
+
+  entity.relations.forEach(relation => {
+    const target = entityMapByName.get(relation.target) || entityMapByFqcn.get(relation.target)
+    if (target) {
+      relatedSet.add(target)
+    }
+  })
+
+  allEntities.forEach(e => {
+    if (e.relations) {
+      e.relations.forEach(rel => {
+        const targetName = rel.target
+        if (targetName === entity.name || targetName === entity.fqcn) {
+          relatedSet.add(e)
+        }
+      })
+    }
+  })
+
+  return Array.from(relatedSet)
 }
 
-// Search results for dropdown
 const searchResults = computed(() => {
   if (!searchQuery.value) return []
 
@@ -148,28 +157,31 @@ const searchResults = computed(() => {
       entity.name.toLowerCase().includes(query) ||
       entity.table?.toLowerCase().includes(query)
     )
-    .slice(0, 5) // Limit to 5 results
+    .slice(0, 5)
 })
 
-// Compute relations between paginated entities (optimized)
 const relations = computed(() => {
   const rels = []
+  const seenPairs = new Set()
 
-  // Use paginated entities instead of filtered for better performance
   const visibleEntities = paginatedEntities.value
-  const visibleEntityIds = new Set(visibleEntities.map(e => e.fqcn || e.name))
 
-  // Build a map for faster lookups
-  const entityMap = new Map(visibleEntities.map(e => [e.fqcn || e.name, e]))
+  const entityMapByFqcn = new Map(visibleEntities.map(e => [e.fqcn || e.name, e]))
+  const entityMapByName = new Map(visibleEntities.map(e => [e.name, e]))
 
-  // Only compute relations between visible entities
   visibleEntities.forEach((entity) => {
     if (entity.relations) {
       entity.relations.forEach((relation) => {
-        // Only show relations where both entities are visible
-        if (visibleEntityIds.has(relation.target)) {
-          const target = entityMap.get(relation.target)
-          if (target) {
+        let target = entityMapByName.get(relation.target) || entityMapByFqcn.get(relation.target)
+
+        if (target) {
+          const entityA = entity.fqcn || entity.name
+          const entityB = target.fqcn || target.name
+          const pairKey = [entityA, entityB].sort().join('|')
+
+          if (!seenPairs.has(pairKey)) {
+            seenPairs.add(pairKey)
+
             rels.push({
               from: entity,
               to: target,
@@ -202,11 +214,9 @@ function selectEntityFromSearch(entity) {
 
 function clearSearch() {
   searchQuery.value = ''
-  selectedNamespace.value = namespaces.value.length > 0 ? namespaces.value[0] : null
   showRelationsOnly.value = false
 }
 
-// Close dropdown when clicking outside
 function handleClickOutside(event) {
   if (!event.target.closest('.search-container')) {
     showSearchDropdown.value = false
@@ -268,10 +278,14 @@ function handleClickOutside(event) {
           </select>
         </div>
 
-        <!-- Show Relations Only Toggle -->
-        <label class="checkbox-group">
-          <input type="checkbox" v-model="showRelationsOnly" />
-          <span>Related tables only</span>
+        <!-- Show Relations Only Toggle (only active when a table is selected) -->
+        <label class="checkbox-group" :class="{ disabled: !selectedEntity }">
+          <input
+            type="checkbox"
+            v-model="showRelationsOnly"
+            :disabled="!selectedEntity"
+          />
+          <span>Show related tables</span>
         </label>
       </div>
     </div>
@@ -528,11 +542,26 @@ function handleClickOutside(event) {
   background: white;
 }
 
+.checkbox-group.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: var(--color-gray-100);
+}
+
+.checkbox-group.disabled:hover {
+  border-color: var(--color-gray-300);
+  background: var(--color-gray-100);
+}
+
 .checkbox-group input[type="checkbox"] {
   cursor: pointer;
   width: 16px;
   height: 16px;
   accent-color: var(--color-primary-500);
+}
+
+.checkbox-group input[type="checkbox"]:disabled {
+  cursor: not-allowed;
 }
 
 /* Stats Badge */

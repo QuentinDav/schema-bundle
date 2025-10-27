@@ -38,7 +38,6 @@ final class SchemaExtractor
                     default => 'unknown'
                 },
                 'owning'    => (bool)($a['isOwningSide'] ?? false),
-                // nullable n'a de sens que pour owning 1-1 / N-1
                 'nullable'  => ($type === ClassMetadata::ONE_TO_ONE || $type === ClassMetadata::MANY_TO_ONE)
                 && ($a['isOwningSide'] ?? false)
                     ? ($a['joinColumns'][0]['nullable'] ?? null)

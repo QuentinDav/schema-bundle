@@ -43,7 +43,6 @@ const suggestions = computed(() => {
 
   const query = suggestionQuery.value.toLowerCase()
 
-  // Combine users and fields into one list
   const userSuggestions = (query
     ? props.users.filter((user) => user.name.toLowerCase().includes(query))
     : props.users
@@ -54,17 +53,7 @@ const suggestions = computed(() => {
     : props.fields
   ).map((field) => ({ type: 'field', data: field }))
 
-  // Combine and limit total results
   const combined = [...userSuggestions, ...fieldSuggestions].slice(0, 10)
-
-  console.log('Suggestions debug:', {
-    query,
-    usersCount: props.users.length,
-    fieldsCount: props.fields.length,
-    userSuggestionsCount: userSuggestions.length,
-    fieldSuggestionsCount: fieldSuggestions.length,
-    combinedCount: combined.length,
-  })
 
   return combined
 })
@@ -80,11 +69,9 @@ function handleInput(event) {
 
   internalValue.value = value
 
-  // Check for / trigger only
   const textBeforeCursor = value.substring(0, cursorPos)
   const lastSlashIndex = textBeforeCursor.lastIndexOf('/')
 
-  // Check if we're in a mention context
   const slashMatch =
     lastSlashIndex !== -1 && textBeforeCursor.substring(lastSlashIndex).match(/^\/(\w*)$/)
 
@@ -121,13 +108,11 @@ function insertSuggestion(suggestion) {
   const value = internalValue.value
   const cursorPos = cursorPosition.value
 
-  // Find the start of the mention/field
   const textBeforeCursor = value.substring(0, cursorPos)
   const lastTriggerIndex = textBeforeCursor.lastIndexOf('/')
 
   if (lastTriggerIndex === -1) return
 
-  // Replace from trigger to cursor with the suggestion
   const before = value.substring(0, lastTriggerIndex)
   const after = value.substring(cursorPos)
 
@@ -135,7 +120,6 @@ function insertSuggestion(suggestion) {
   if (suggestion.type === 'user') {
     insertText = `@${suggestion.data.username} `
   } else {
-    // Use a special format for fields: [[fieldname]]
     insertText = `[[${suggestion.data.name}]] `
   }
 
@@ -144,7 +128,6 @@ function insertSuggestion(suggestion) {
 
   showSuggestions.value = false
 
-  // Move cursor after the insertion
   nextTick(() => {
     const newCursorPos = lastTriggerIndex + insertText.length
     textareaRef.value.setSelectionRange(newCursorPos, newCursorPos)
@@ -159,7 +142,6 @@ function updateSuggestionPosition() {
     const textarea = textareaRef.value
     const rect = textarea.getBoundingClientRect()
 
-    // Position above the textarea
     suggestionPosition.value = {
       bottom: textarea.offsetHeight + 5,
       left: 10,

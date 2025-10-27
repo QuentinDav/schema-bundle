@@ -70,7 +70,6 @@ final class InstallSchemaCommand extends Command
             return Command::INVALID;
         }
 
-        // Execute the SQL statements
         $io->section('Creating missing QD Schema tables...');
         $tool->createSchema($toCreateMetas);
         $io->success('QD Schema tables created successfully.');

@@ -17,7 +17,6 @@ final class SchemaApiController
             if(str_starts_with($m->getTableName(), 'qd_')) {
                 continue;
             }
-            // Nom court
             $name = substr($m->getName(), strrpos($m->getName(), '\\') + 1);
 
             $entity = [
@@ -44,7 +43,7 @@ final class SchemaApiController
                 $entity['relations'][] = [
                     'field'       => $assoc['fieldName'],
                     'target'      => substr($assoc['targetEntity'], strrpos($assoc['targetEntity'], '\\') + 1),
-                    'type'        => $assoc['type'],               // 1:1, 2:1-N, 3:N-1, 4:N-N (constantes ClassMetadata)
+                    'type'        => $assoc['type'],
                     'mappedBy'    => $assoc['mappedBy']   ?? null,
                     'inversedBy'  => $assoc['inversedBy'] ?? null,
                     'isOwning'    => $assoc['isOwningSide'] ?? false,

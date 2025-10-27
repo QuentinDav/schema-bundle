@@ -5,21 +5,13 @@ import { useToastStore } from './toast'
 export const useCommentsStore = defineStore('comments', () => {
   const toastStore = useToastStore()
 
-  // State
   const comments = ref([])
-  const users = ref([
-    // Mock users - TODO: Replace with real API call
-    { id: 1, name: 'Alice Dupont', username: 'alice' },
-    { id: 2, name: 'Bob Martin', username: 'bob' },
-    { id: 3, name: 'Charlie Bernard', username: 'charlie' },
-    { id: 4, name: 'Diana Laurent', username: 'diana' },
-    { id: 5, name: 'Eve Moreau', username: 'eve' },
-  ])
+  const users = ref([])
   const loading = ref(false)
+  const loadingUsers = ref(false)
   const error = ref(null)
-  const activeTarget = ref(null) // { type: 'table' | 'field', entityFqcn: string, fieldName?: string }
+  const activeTarget = ref(null)
 
-  // Getters
   const activeComments = computed(() => {
     if (!activeTarget.value) return []
 
@@ -49,13 +41,11 @@ export const useCommentsStore = defineStore('comments', () => {
 
   const totalComments = computed(() => comments.value.length)
 
-  // Actions
   async function fetchComments(entityFqcn = null, fieldName = null) {
     loading.value = true
     error.value = null
 
     try {
-      // Build query params for filtering by entity
       const params = new URLSearchParams()
       if (entityFqcn) {
         params.append('entityFqcn', entityFqcn)
@@ -77,14 +67,10 @@ export const useCommentsStore = defineStore('comments', () => {
       if (!res.ok) throw new Error('API error')
       const data = await res.json()
       comments.value = data.comments || []
-
-      // Mock data for now - remove when API is ready
-      // comments.value = []
     } catch (e) {
       error.value = e.message
       console.error('Error fetching comments:', e)
       toastStore.error('Failed to load comments')
-      // Set empty array on error to avoid stale data
       comments.value = []
     } finally {
       loading.value = false
@@ -93,7 +79,6 @@ export const useCommentsStore = defineStore('comments', () => {
 
   async function addComment(commentData) {
     try {
-      // Prepare payload for backend API
       const payload = {
         body: commentData.content,
         entity_fqcn: commentData.entityFqcn,
@@ -110,7 +95,6 @@ export const useCommentsStore = defineStore('comments', () => {
       if (!res.ok) throw new Error('API error')
       const newComment = await res.json()
 
-      // Add the new comment to local state
       comments.value.push(newComment)
       toastStore.success('Comment added successfully')
       return newComment
@@ -129,7 +113,6 @@ export const useCommentsStore = defineStore('comments', () => {
       })
       if (!res.ok) throw new Error('API error')
 
-      // Remove from local state after successful deletion
       comments.value = comments.value.filter((c) => c.id !== commentId)
       toastStore.success('Comment deleted successfully')
     } catch (e) {
@@ -137,6 +120,31 @@ export const useCommentsStore = defineStore('comments', () => {
       console.error('Error deleting comment:', e)
       toastStore.error('Failed to delete comment')
       throw e
+    }
+  }
+
+  async function fetchUsers() {
+    loadingUsers.value = true
+    error.value = null
+
+    try {
+      const res = await fetch('/schema-doc/api/users')
+      if (!res.ok) throw new Error('Failed to fetch users')
+
+      const data = await res.json()
+
+      users.value = (data.users || []).map(user => ({
+        id: user.id,
+        name: user.email,
+        username: user.username || user.email?.split('@')[0] || `user${user.id}`,
+        email: user.email,
+      }))
+    } catch (e) {
+      error.value = e.message
+      console.error('Error fetching users:', e)
+      users.value = []
+    } finally {
+      loadingUsers.value = false
     }
   }
 
@@ -149,20 +157,19 @@ export const useCommentsStore = defineStore('comments', () => {
   }
 
   return {
-    // State
     comments,
     users,
     loading,
+    loadingUsers,
     error,
     activeTarget,
 
-    // Getters
     activeComments,
     getCommentsCount,
     totalComments,
 
-    // Actions
     fetchComments,
+    fetchUsers,
     addComment,
     deleteComment,
     setActiveTarget,
