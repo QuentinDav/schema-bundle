@@ -24,7 +24,7 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['entity-click', 'entity-hover'])
+const emit = defineEmits(['entity-click', 'entity-hover', 'entity-double-click'])
 
 const nodeTypes = {
   databaseTable: DatabaseTableNode
@@ -59,34 +59,32 @@ function getRelationTypeLabel(type) {
 
 const nodesWithLayout = ref([])
 const currentEntitiesKey = ref('')
+const isCalculating = ref(false)
 
 const nodes = computed(() => {
   const entitiesKey = props.entities.map(e => e.fqcn || e.name).sort().join(',')
 
-  if (entitiesKey !== currentEntitiesKey.value) {
-    return props.entities.map((entity) => {
-      return {
-        id: entity.fqcn || entity.name,
-        type: 'databaseTable',
-        position: { x: 0, y: 0 },
-        data: {
-          name: entity.name,
-          table: entity.table,
-          fields: entity.fields || [],
-          namespace: extractNamespace(entity.fqcn || entity.name),
-          entity: entity,
-        },
-        draggable: true,
-        width: 280,
-        height: 80 + Math.min((entity.fields || []).length, 8) * 22,
-      }
-    })
+  // If currently calculating and we have old layout, keep showing it
+  if (isCalculating.value && nodesWithLayout.value.length > 0) {
+    return nodesWithLayout.value
   }
 
+  // If layout ready for current entities, show it
   if (nodesWithLayout.value.length > 0 && entitiesKey === currentEntitiesKey.value) {
     return nodesWithLayout.value
   }
 
+  // If no entities, return empty
+  if (props.entities.length === 0) {
+    return []
+  }
+
+  // Otherwise keep old layout until new one is calculated
+  if (nodesWithLayout.value.length > 0) {
+    return nodesWithLayout.value
+  }
+
+  // First render: return empty, layout will be calculated
   return []
 })
 
@@ -138,11 +136,14 @@ const edges = computed(() => {
 })
 
 async function calculateLayout() {
-  nodesWithLayout.value = []
-
   if (props.entities.length === 0) {
+    nodesWithLayout.value = []
+    currentEntitiesKey.value = ''
     return
   }
+
+  // Mark as calculating (keeps old layout visible)
+  isCalculating.value = true
 
   const elkNodes = props.entities.map(entity => ({
     id: entity.fqcn || entity.name,
@@ -199,6 +200,9 @@ async function calculateLayout() {
 
   } catch (error) {
     console.error('ELK layout error:', error)
+  } finally {
+    // Done calculating
+    isCalculating.value = false
   }
 }
 
@@ -208,6 +212,10 @@ watch([() => props.entities, () => props.relations], () => {
 
 function onNodeClick(event) {
   emit('entity-click', event.node.data.entity)
+}
+
+function onNodeDoubleClick(event) {
+  emit('entity-double-click', event.node.data.entity)
 }
 
 function onNodeMouseEnter(event) {
@@ -343,12 +351,13 @@ defineExpose({
       :snap-to-grid="false"
       :zoom-on-scroll="true"
       :pan-on-scroll="false"
-      :zoom-on-double-click="true"
+      :zoom-on-double-click="false"
       :nodes-connectable="false"
       :nodes-draggable="true"
       :elements-selectable="false"
       :connect-on-click="false"
       @node-click="onNodeClick"
+      @node-double-click="onNodeDoubleClick"
       @node-mouse-enter="onNodeMouseEnter"
       class="schema-flow"
     >

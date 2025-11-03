@@ -74,6 +74,7 @@ export const useSchemaStore = defineStore('schema', () => {
   const selectedEntity = ref(null)
   const focusedEntity = ref(null)
   const searchQuery = ref('')
+  const selectedEntities = ref(new Set()) // Multi-selection support
 
   const relationIndex = shallowRef(null)
 
@@ -148,6 +149,76 @@ export const useSchemaStore = defineStore('schema', () => {
     return entities.value.filter(e => relatedIds.has(e.fqcn || e.name))
   }
 
+  // Group entities by namespace
+  const namespaces = computed(() => {
+    const nsMap = new Map()
+
+    entities.value.forEach(entity => {
+      const fqcn = entity.fqcn || entity.name
+      const parts = fqcn.split('\\')
+      const namespace = parts.slice(0, -1).join('\\') || 'Default'
+
+      if (!nsMap.has(namespace)) {
+        nsMap.set(namespace, {
+          name: namespace,
+          entities: [],
+          relationCount: 0
+        })
+      }
+
+      nsMap.get(namespace).entities.push(entity)
+    })
+
+    // Calculate relation counts
+    nsMap.forEach(ns => {
+      let internalRelations = 0
+      let externalRelations = 0
+
+      ns.entities.forEach(entity => {
+        entity.relations?.forEach(rel => {
+          const targetNs = rel.target.split('\\').slice(0, -1).join('\\') || 'Default'
+          if (targetNs === ns.name) {
+            internalRelations++
+          } else {
+            externalRelations++
+          }
+        })
+      })
+
+      ns.relationCount = internalRelations + externalRelations
+      ns.internalRelations = internalRelations
+      ns.externalRelations = externalRelations
+    })
+
+    return Array.from(nsMap.values()).sort((a, b) => a.name.localeCompare(b.name))
+  })
+
+  // Get selected entities with their direct relations
+  const selectedEntitiesWithRelations = computed(() => {
+    if (selectedEntities.value.size === 0) {
+      return []
+    }
+
+    const entityMap = new Map(entities.value.map(e => [e.fqcn || e.name, e]))
+    const resultSet = new Set()
+
+    // Add all selected entities
+    selectedEntities.value.forEach(id => {
+      const entity = entityMap.get(id)
+      if (entity) {
+        resultSet.add(entity)
+      }
+    })
+
+    // Add their direct relations
+    selectedEntities.value.forEach(id => {
+      const related = getRelatedEntities(id)
+      related.forEach(e => resultSet.add(e))
+    })
+
+    return Array.from(resultSet)
+  })
+
   async function fetchSchema() {
     loading.value = true
     error.value = null
@@ -188,6 +259,37 @@ export const useSchemaStore = defineStore('schema', () => {
     focusedEntity.value = null
   }
 
+  // Multi-selection functions
+  function toggleEntitySelection(fqcn) {
+    const newSet = new Set(selectedEntities.value)
+    if (newSet.has(fqcn)) {
+      newSet.delete(fqcn)
+    } else {
+      newSet.add(fqcn)
+    }
+    selectedEntities.value = newSet
+  }
+
+  function addEntityToSelection(fqcn) {
+    const newSet = new Set(selectedEntities.value)
+    newSet.add(fqcn)
+    selectedEntities.value = newSet
+  }
+
+  function removeEntityFromSelection(fqcn) {
+    const newSet = new Set(selectedEntities.value)
+    newSet.delete(fqcn)
+    selectedEntities.value = newSet
+  }
+
+  function clearSelectedEntities() {
+    selectedEntities.value = new Set()
+  }
+
+  function setSelectedEntities(fqcns) {
+    selectedEntities.value = new Set(fqcns)
+  }
+
   return {
     entities,
     loading,
@@ -195,6 +297,7 @@ export const useSchemaStore = defineStore('schema', () => {
     selectedEntity,
     focusedEntity,
     searchQuery,
+    selectedEntities,
     relationIndex,
 
     filteredEntities,
@@ -203,6 +306,8 @@ export const useSchemaStore = defineStore('schema', () => {
     totalEntities,
     totalFields,
     totalRelations,
+    namespaces,
+    selectedEntitiesWithRelations,
 
     fetchSchema,
     selectEntity,
@@ -210,6 +315,11 @@ export const useSchemaStore = defineStore('schema', () => {
     focusEntity,
     clearFocus,
     setSearchQuery,
-    getRelatedEntities
+    getRelatedEntities,
+    toggleEntitySelection,
+    addEntityToSelection,
+    removeEntityFromSelection,
+    clearSelectedEntities,
+    setSelectedEntities
   }
 })

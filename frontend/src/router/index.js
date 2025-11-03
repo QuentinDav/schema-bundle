@@ -3,6 +3,7 @@ import SchemaView from '@/views/SchemaView.vue'
 import CardsView from '@/views/CardsView.vue'
 import ListView from '@/views/ListView.vue'
 import ReleasesView from '@/views/ReleasesView.vue'
+import QueryBuilderView from '@/views/QueryBuilderView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -30,6 +31,11 @@ const router = createRouter({
       path: '/releases',
       name: 'releases',
       component: ReleasesView,
+    },
+    {
+      path: '/query-builder',
+      name: 'query-builder',
+      component: QueryBuilderView,
     },
   ],
 })

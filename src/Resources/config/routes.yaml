@@ -57,6 +57,21 @@ qd_users_get:
   controller: Qd\SchemaBundle\Controller\UserApiController::get
   methods: [ GET ]
 
+qd_nl_generate:
+  path: /schema-doc/api/nl-to-sql/generate
+  controller: Qd\SchemaBundle\Controller\NlToSqlController::generate
+  methods: [ POST ]
+
+qd_nl_estimate_cost:
+  path: /schema-doc/api/nl-to-sql/estimate-cost
+  controller: Qd\SchemaBundle\Controller\NlToSqlController::estimateCost
+  methods: [ POST ]
+
+qd_nl_status:
+  path: /schema-doc/api/nl-to-sql/status
+  controller: Qd\SchemaBundle\Controller\NlToSqlController::status
+  methods: [ GET ]
+
 qd_snapshots_entity_history:
   path: /schema-doc/api/snapshots/entity/{fqcn}
   controller: Qd\SchemaBundle\Controller\ReleaseApiController::entityHistory

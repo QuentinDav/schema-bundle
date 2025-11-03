@@ -20,3 +20,4 @@ composer.lock
 
 # Release scripts (local only)
 /release.sh
+/CLAUDE.md

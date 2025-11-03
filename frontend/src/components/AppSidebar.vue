@@ -30,6 +30,12 @@ const navItems = [
     icon: 'clock',
     description: 'Version history',
   },
+  {
+    name: 'Query Builder',
+    path: '/query-builder',
+    icon: 'command-line',
+    description: 'AI-powered SQL',
+  },
 ]
 
 const isActive = computed(() => (path) => {

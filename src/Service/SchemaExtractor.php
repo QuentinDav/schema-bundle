@@ -8,6 +8,32 @@ final class SchemaExtractor
 {
     public function __construct(private EntityManagerInterface $em) {}
 
+    /**
+     * Extract all entities from Doctrine metadata.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function extract(): array
+    {
+        $entities = [];
+        $metadatas = $this->em->getMetadataFactory()->getAllMetadata();
+
+        foreach ($metadatas as $metadata) {
+            $entityData = $this->extractEntity($metadata->getName());
+
+            // Transform to format expected by NL→SQL
+            $entities[] = [
+                'name' => $this->getShortName($metadata->getName()),
+                'fqcn' => $metadata->getName(),
+                'tableName' => $metadata->getTableName(),
+                'fields' => $this->transformFields($entityData['fields']),
+                'associations' => $this->transformAssociations($entityData['rels']),
+            ];
+        }
+
+        return $entities;
+    }
+
     public function extractEntity(string $fqcn): array
     {
         /** @var ClassMetadata $m */
@@ -53,6 +79,47 @@ final class SchemaExtractor
             'fields' => $fields,
             'rels'   => $rels,
         ];
+    }
+
+    /**
+     * Get short class name from FQCN.
+     */
+    private function getShortName(string $fqcn): string
+    {
+        $parts = explode('\\', $fqcn);
+        return end($parts);
+    }
+
+    /**
+     * Transform fields to NL→SQL format.
+     */
+    private function transformFields(array $fields): array
+    {
+        $result = [];
+        foreach ($fields as $name => $field) {
+            $result[] = [
+                'name' => $name,
+                'type' => $field['type'],
+                'nullable' => $field['nullable'],
+            ];
+        }
+        return $result;
+    }
+
+    /**
+     * Transform associations to NL→SQL format.
+     */
+    private function transformAssociations(array $rels): array
+    {
+        $result = [];
+        foreach ($rels as $fieldName => $rel) {
+            $result[] = [
+                'fieldName' => $fieldName,
+                'targetEntity' => $this->getShortName($rel['target']),
+                'type' => $rel['type'],
+            ];
+        }
+        return $result;
     }
 
     public static function stableHash(array $schema): string

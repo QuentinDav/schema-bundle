@@ -1,0 +1,175 @@
+# Example configuration for QdSchemaBundle
+# Copy this to config/packages/qd_schema.yaml and customize
+#
+# IMPORTANT: You also need to configure the AI Platform in config/services.yaml
+# See examples at the bottom of this file
+
+qd_schema:
+  nl_to_sql:
+    # Enable Natural Language to SQL feature
+    enabled: true
+
+    # Strategy: 'local' (free), 'ai' (paid), or 'hybrid' (recommended)
+    strategy: local
+
+    # Confidence threshold for hybrid strategy (0.0 - 1.0)
+    # If local confidence < threshold, fallback to AI
+    confidence_threshold: 0.7
+
+    ai:
+      # Model to use (depends on your configured provider)
+      # OpenAI: gpt-4-turbo, gpt-4, gpt-3.5-turbo
+      # Anthropic: claude-3-opus, claude-3-sonnet, claude-3-haiku
+      # Azure: your-deployment-name
+      # Ollama: llama3, codellama, mistral (local, free)
+      model: gpt-4-turbo
+
+      # Maximum tokens for response
+      max_tokens: 1000
+
+      # Temperature (0.0 = deterministic, 2.0 = creative)
+      # Lower is better for SQL generation
+      temperature: 0.2
+
+    cost:
+      # Warn if estimated cost exceeds this amount (USD)
+      warn_threshold: 0.10
+
+      # Block request if estimated cost exceeds this amount (USD)
+      max_per_request: 0.50
+
+# ============================================================================
+# AI PLATFORM CONFIGURATION (add to config/services.yaml)
+# ============================================================================
+
+# Choose ONE of the following and add to your config/services.yaml:
+
+# ---
+# OpenAI (Recommended)
+# ---
+# services:
+#   qd_schema.ai_platform:
+#     class: Symfony\AI\Platform\OpenAi\Client
+#     factory: ['Symfony\AI\Platform\Bridge\OpenAi\PlatformFactory', 'create']
+#     arguments:
+#       - '%env(OPENAI_API_KEY)%'  # Add OPENAI_API_KEY to .env.local
+#       - '@http_client'
+
+# ---
+# Anthropic Claude
+# ---
+# services:
+#   qd_schema.ai_platform:
+#     class: Symfony\AI\Platform\Anthropic\Client
+#     factory: ['Symfony\AI\Platform\Bridge\Anthropic\PlatformFactory', 'create']
+#     arguments:
+#       - '%env(ANTHROPIC_API_KEY)%'  # Add ANTHROPIC_API_KEY to .env.local
+#       - '@http_client'
+
+# ---
+# Azure OpenAI
+# ---
+# services:
+#   qd_schema.ai_platform:
+#     class: Symfony\AI\Platform\Azure\Client
+#     factory: ['Symfony\AI\Platform\Bridge\Azure\PlatformFactory', 'create']
+#     arguments:
+#       - '%env(AZURE_API_KEY)%'
+#       - '%env(AZURE_ENDPOINT)%'
+#       - '@http_client'
+
+# ---
+# Ollama (Local, Free)
+# ---
+# services:
+#   qd_schema.ai_platform:
+#     class: Symfony\AI\Platform\Ollama\Client
+#     factory: ['Symfony\AI\Platform\Bridge\Ollama\PlatformFactory', 'create']
+#     arguments:
+#       - 'http://localhost:11434'
+#       - '@http_client'
+
+# ============================================================================
+# COMPLETE CONFIGURATION EXAMPLES
+# ============================================================================
+
+# ---
+# Example 1: DEVELOPMENT (No AI, Free)
+# ---
+# qd_schema:
+#   nl_to_sql:
+#     enabled: true
+#     strategy: local
+
+# ---
+# Example 2: PRODUCTION with OpenAI (Recommended)
+# ---
+# Step 1: Add to .env.local:
+#   OPENAI_API_KEY=sk-your-key-here
+#
+# Step 2: Add to config/services.yaml:
+#   services:
+#     qd_schema.ai_platform:
+#       class: Symfony\AI\Platform\OpenAi\Client
+#       factory: ['Symfony\AI\Platform\Bridge\OpenAi\PlatformFactory', 'create']
+#       arguments:
+#         - '%env(OPENAI_API_KEY)%'
+#         - '@http_client'
+#
+# Step 3: Configure in config/packages/qd_schema.yaml:
+#   qd_schema:
+#     nl_to_sql:
+#       enabled: true
+#       strategy: hybrid
+#       confidence_threshold: 0.7
+#       ai:
+#         model: gpt-4-turbo
+#         temperature: 0.2
+#       cost:
+#         warn_threshold: 0.10
+#         max_per_request: 0.50
+
+# ---
+# Example 3: PRODUCTION with Claude (High Quality)
+# ---
+# Step 1: ANTHROPIC_API_KEY=sk-ant-... in .env.local
+# Step 2: Configure Anthropic platform in services.yaml (see above)
+# Step 3:
+#   qd_schema:
+#     nl_to_sql:
+#       enabled: true
+#       strategy: hybrid
+#       ai:
+#         model: claude-3-sonnet
+#         temperature: 0.2
+
+# ---
+# Example 4: PRODUCTION with Ollama (Free, Local)
+# ---
+# Step 1: Install Ollama and run: ollama pull llama3 && ollama serve
+# Step 2: Configure Ollama platform in services.yaml (see above)
+# Step 3:
+#   qd_schema:
+#     nl_to_sql:
+#       enabled: true
+#       strategy: ai
+#       ai:
+#         model: llama3
+#       cost:
+#         warn_threshold: 0
+#         max_per_request: 0
+
+# ---
+# Example 5: COST-OPTIMIZED
+# ---
+#   qd_schema:
+#     nl_to_sql:
+#       enabled: true
+#       strategy: hybrid
+#       confidence_threshold: 0.8  # Higher = less AI usage
+#       ai:
+#         model: gpt-3.5-turbo  # Cheaper than gpt-4
+#         temperature: 0.1
+#       cost:
+#         warn_threshold: 0.05
+#         max_per_request: 0.10
