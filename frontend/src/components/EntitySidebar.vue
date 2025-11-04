@@ -9,7 +9,6 @@ const searchQuery = ref('')
 const collapsedNamespaces = ref(new Set())
 const showOnlyWithRelations = ref(false)
 
-// Computed: filtered namespaces based on search
 const filteredNamespaces = computed(() => {
   const query = searchQuery.value.toLowerCase().trim()
 
@@ -21,7 +20,6 @@ const filteredNamespaces = computed(() => {
     .map(ns => {
       let filteredEntities = ns.entities
 
-      // Filter by search query
       if (query) {
         filteredEntities = filteredEntities.filter(entity =>
           entity.name.toLowerCase().includes(query) ||
@@ -30,7 +28,6 @@ const filteredNamespaces = computed(() => {
         )
       }
 
-      // Filter by relations
       if (showOnlyWithRelations.value) {
         filteredEntities = filteredEntities.filter(entity =>
           entity.relations && entity.relations.length > 0
@@ -46,12 +43,10 @@ const filteredNamespaces = computed(() => {
     .filter(ns => ns.entities.length > 0)
 })
 
-// Computed: total visible entities
 const totalVisibleEntities = computed(() => {
   return filteredNamespaces.value.reduce((acc, ns) => acc + ns.entities.length, 0)
 })
 
-// Toggle namespace collapse
 function toggleNamespace(namespaceName) {
   const newSet = new Set(collapsedNamespaces.value)
   if (newSet.has(namespaceName)) {
@@ -62,36 +57,29 @@ function toggleNamespace(namespaceName) {
   collapsedNamespaces.value = newSet
 }
 
-// Check if namespace is collapsed
 function isCollapsed(namespaceName) {
   return collapsedNamespaces.value.has(namespaceName)
 }
 
-// Handle entity click
 function handleEntityClick(entity, event) {
   const fqcn = entity.fqcn || entity.name
 
   if (event.metaKey || event.ctrlKey) {
-    // Multi-selection with Cmd/Ctrl
     schemaStore.toggleEntitySelection(fqcn)
   } else {
-    // Single selection (replace)
     schemaStore.setSelectedEntities([fqcn])
   }
 }
 
-// Check if entity is selected
 function isSelected(entity) {
   const fqcn = entity.fqcn || entity.name
   return schemaStore.selectedEntities.has(fqcn)
 }
 
-// Clear selection
 function clearSelection() {
   schemaStore.clearSelectedEntities()
 }
 
-// Select all visible entities
 function selectAllVisible() {
   const allFqcns = filteredNamespaces.value
     .flatMap(ns => ns.entities)
@@ -100,136 +88,125 @@ function selectAllVisible() {
   schemaStore.setSelectedEntities(allFqcns)
 }
 
-// Expand all namespaces
 function expandAll() {
   collapsedNamespaces.value = new Set()
 }
 
-// Collapse all namespaces
 function collapseAll() {
   const allNs = filteredNamespaces.value.map(ns => ns.name)
   collapsedNamespaces.value = new Set(allNs)
 }
 
-// Auto-expand namespaces when searching
 watch(searchQuery, (newQuery) => {
   if (newQuery.trim()) {
-    // Expand all when searching
     collapsedNamespaces.value = new Set()
   }
 })
 </script>
 
 <template>
-  <div class="entity-sidebar">
-    <!-- Header -->
-    <div class="sidebar-header">
-      <div class="header-title">
-        <Icon name="table-cells" :size="20" />
-        <h2>Entities</h2>
+  <div class="h-full flex flex-col bg-[var(--color-surface)] border-r border-[var(--color-border)]">
+    <div class="flex items-center justify-between px-4 py-3 bg-[var(--color-surface-raised)] border-b border-[var(--color-border)]">
+      <div class="flex items-center gap-2">
+        <Icon name="table-cells" :size="20" class="text-[var(--color-primary)]" />
+        <h2 class="m-0 text-base font-bold text-[var(--color-text-primary)]">Entities</h2>
       </div>
 
-      <div class="header-actions">
+      <div class="flex gap-2">
         <button
           v-if="schemaStore.selectedEntities.size > 0"
           @click="clearSelection"
-          class="action-btn clear-btn"
+          class="flex items-center justify-center w-8 h-8 bg-[var(--color-danger-light)] border border-[#ef4444]/30 rounded-md cursor-pointer transition-all duration-200 hover:bg-[#ef4444]/20"
           title="Clear selection"
         >
-          <Icon name="x-mark" :size="16" />
+          <Icon name="x-mark" :size="16" class="text-[#ef4444]" />
         </button>
       </div>
     </div>
 
-    <!-- Search & Filters -->
-    <div class="sidebar-search">
-      <div class="search-input-wrapper">
-        <Icon name="magnifying-glass" :size="16" class="search-icon" />
+    <div class="px-3 py-3 bg-[var(--color-surface-raised)] border-b border-[var(--color-border)]">
+      <div class="relative flex items-center bg-[var(--color-background)] border border-[var(--color-border)] rounded-md px-2 py-2 mb-2 transition-all duration-200 focus-within:border-[var(--color-primary)] focus-within:bg-[var(--color-surface)]">
+        <Icon name="magnifying-glass" :size="16" class="text-[var(--color-text-tertiary)] mr-2" />
         <input
           v-model="searchQuery"
           type="text"
           placeholder="Search entities..."
-          class="search-input"
+          class="flex-1 border-0 bg-transparent text-sm outline-none text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)]"
         />
         <button
           v-if="searchQuery"
           @click="searchQuery = ''"
-          class="clear-search-btn"
+          class="bg-transparent border-0 p-1 cursor-pointer text-[var(--color-text-tertiary)] flex items-center rounded transition-all duration-200 hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-secondary)]"
         >
           <Icon name="x-mark" :size="14" />
         </button>
       </div>
 
-      <!-- Filters Row -->
-      <div class="filters-row">
-        <label class="filter-checkbox">
-          <input type="checkbox" v-model="showOnlyWithRelations" />
+      <div class="flex items-center justify-between gap-2">
+        <label class="flex items-center gap-1.5 text-xs text-[var(--color-text-secondary)] cursor-pointer select-none">
+          <input type="checkbox" v-model="showOnlyWithRelations" class="cursor-pointer w-3.5 h-3.5" style="accent-color: var(--color-primary)" />
           <span>With relations</span>
         </label>
 
-        <div class="expand-collapse-btns">
-          <button @click="expandAll" class="tiny-btn" title="Expand all">
+        <div class="flex gap-1">
+          <button @click="expandAll" class="flex items-center justify-center w-6 h-6 bg-[var(--color-surface)] border border-[var(--color-border)] rounded cursor-pointer transition-all duration-200 text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]" title="Expand all">
             <Icon name="chevron-down" :size="12" />
           </button>
-          <button @click="collapseAll" class="tiny-btn" title="Collapse all">
+          <button @click="collapseAll" class="flex items-center justify-center w-6 h-6 bg-[var(--color-surface)] border border-[var(--color-border)] rounded cursor-pointer transition-all duration-200 text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]" title="Collapse all">
             <Icon name="chevron-up" :size="12" />
           </button>
         </div>
       </div>
     </div>
 
-    <!-- Tree View -->
-    <div class="sidebar-content">
-      <div v-if="filteredNamespaces.length === 0" class="empty-state">
-        <Icon name="inbox" :size="48" class="empty-icon" />
-        <p>No entities found</p>
-        <button @click="searchQuery = ''; showOnlyWithRelations = false" class="reset-btn">
+    <div class="flex-1 overflow-y-auto overflow-x-hidden">
+      <div v-if="filteredNamespaces.length === 0" class="flex flex-col items-center justify-center p-8 text-center text-[var(--color-text-tertiary)]">
+        <Icon name="inbox" :size="48" class="mb-3 opacity-50" />
+        <p class="m-0 mb-3 text-sm text-[var(--color-text-secondary)]">No entities found</p>
+        <button @click="searchQuery = ''; showOnlyWithRelations = false" class="px-3 py-2 bg-[var(--color-primary)] text-white border-0 rounded-md text-sm font-semibold cursor-pointer transition-all duration-200 hover:bg-[var(--color-primary-hover)]">
           Reset filters
         </button>
       </div>
 
-      <div v-else class="namespaces-list">
+      <div v-else class="p-2">
         <div
           v-for="namespace in filteredNamespaces"
           :key="namespace.name"
-          class="namespace-group"
+          class="mb-2"
         >
-          <!-- Namespace Header -->
           <div
             @click="toggleNamespace(namespace.name)"
-            class="namespace-header"
-            :class="{ collapsed: isCollapsed(namespace.name) }"
+            class="flex items-center gap-2 px-2 py-2 bg-[var(--color-surface-raised)] border border-[var(--color-border)] rounded-md cursor-pointer transition-all duration-200 select-none hover:bg-[var(--color-surface-hover)] hover:border-[var(--color-primary)]/30"
           >
             <Icon
               :name="isCollapsed(namespace.name) ? 'chevron-right' : 'chevron-down'"
               :size="16"
-              class="collapse-icon"
+              class="text-[var(--color-text-tertiary)] transition-transform duration-200"
             />
-            <Icon name="folder" :size="16" class="namespace-icon" />
-            <span class="namespace-name">{{ namespace.name }}</span>
-            <span class="entity-count">{{ namespace.entities.length }}</span>
+            <Icon name="folder" :size="16" class="text-[var(--color-primary)]" />
+            <span class="flex-1 text-sm font-semibold text-[var(--color-text-primary)] whitespace-nowrap overflow-hidden text-ellipsis">{{ namespace.name }}</span>
+            <span class="flex items-center justify-center min-w-[24px] h-5 px-1.5 bg-[var(--color-primary-light)] text-[var(--color-primary)] text-xs font-bold rounded-full">{{ namespace.entities.length }}</span>
           </div>
 
-          <!-- Entities List -->
-          <div v-if="!isCollapsed(namespace.name)" class="entities-list">
+          <div v-if="!isCollapsed(namespace.name)" class="mt-1 pl-6">
             <div
               v-for="entity in namespace.entities"
               :key="entity.fqcn || entity.name"
               @click="handleEntityClick(entity, $event)"
-              class="entity-item"
-              :class="{ selected: isSelected(entity) }"
+              class="flex items-center gap-2 px-2 py-2 mb-1 bg-[var(--color-surface-raised)] border border-[var(--color-border)] rounded-md cursor-pointer transition-all duration-200 select-none hover:bg-[var(--color-primary-light)] hover:border-[var(--color-primary)]/30 hover:translate-x-0.5"
+              :class="{ 'bg-[var(--color-primary-light)] border-[var(--color-primary)] !border-2 !p-[7px]': isSelected(entity) }"
               :title="`${entity.name} (${entity.table})\nCmd/Ctrl+Click for multi-select`"
             >
-              <Icon name="table-cells" :size="14" class="entity-icon" />
-              <div class="entity-info">
-                <span class="entity-name">{{ entity.name }}</span>
-                <div class="entity-badges">
-                  <span class="badge badge-fields">
+              <Icon name="table-cells" :size="14" class="flex-shrink-0" :class="isSelected(entity) ? 'text-[var(--color-primary)]' : 'text-[var(--color-text-tertiary)]'" />
+              <div class="flex-1 min-w-0 flex flex-col gap-1">
+                <span class="text-sm font-semibold text-[var(--color-text-primary)] whitespace-nowrap overflow-hidden text-ellipsis">{{ entity.name }}</span>
+                <div class="flex gap-1 flex-wrap">
+                  <span class="inline-flex items-center px-1.5 py-px text-[10px] font-semibold rounded-sm bg-[#3b82f6]/10 text-[#3b82f6] whitespace-nowrap">
                     {{ entity.fields?.length || 0 }} fields
                   </span>
                   <span
                     v-if="entity.relations && entity.relations.length > 0"
-                    class="badge badge-relations"
+                    class="inline-flex items-center px-1.5 py-px text-[10px] font-semibold rounded-sm bg-[#8b5cf6]/10 text-[#8b5cf6] whitespace-nowrap"
                   >
                     {{ entity.relations.length }} rel
                   </span>
@@ -241,14 +218,13 @@ watch(searchQuery, (newQuery) => {
       </div>
     </div>
 
-    <!-- Footer Stats -->
-    <div class="sidebar-footer">
-      <div class="footer-stats">
-        <div class="stat-item">
+    <div class="flex items-center justify-between gap-3 px-3 py-3 bg-[var(--color-surface-raised)] border-t border-[var(--color-border)]">
+      <div class="flex flex-col gap-1">
+        <div class="flex items-center gap-1.5 text-xs text-[var(--color-text-secondary)]">
           <Icon name="table-cells" :size="14" />
           <span>{{ totalVisibleEntities }} / {{ schemaStore.totalEntities }}</span>
         </div>
-        <div v-if="schemaStore.selectedEntities.size > 0" class="stat-item selected-count">
+        <div v-if="schemaStore.selectedEntities.size > 0" class="flex items-center gap-1.5 text-xs text-[var(--color-primary)] font-semibold">
           <Icon name="check-circle" :size="14" />
           <span>{{ schemaStore.selectedEntities.size }} selected</span>
         </div>
@@ -257,7 +233,7 @@ watch(searchQuery, (newQuery) => {
       <button
         v-if="totalVisibleEntities > 0 && schemaStore.selectedEntities.size === 0"
         @click="selectAllVisible"
-        class="select-all-btn"
+        class="px-3 py-1.5 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-md text-xs font-semibold text-[var(--color-text-primary)] cursor-pointer transition-all duration-200 whitespace-nowrap hover:bg-[var(--color-primary)] hover:border-[var(--color-primary)] hover:text-white"
         title="Select all visible entities"
       >
         Select all
@@ -265,446 +241,3 @@ watch(searchQuery, (newQuery) => {
     </div>
   </div>
 </template>
-
-<style scoped>
-.entity-sidebar {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  background: var(--color-gray-50);
-  border-right: 1px solid var(--color-gray-200);
-}
-
-/* Header */
-.sidebar-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: var(--spacing-4);
-  background: white;
-  border-bottom: 1px solid var(--color-gray-200);
-}
-
-.header-title {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-2);
-}
-
-.header-title h2 {
-  margin: 0;
-  font-size: var(--text-lg);
-  font-weight: 700;
-  color: var(--color-gray-900);
-}
-
-.header-actions {
-  display: flex;
-  gap: var(--spacing-2);
-}
-
-.action-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  background: var(--color-gray-100);
-  border: 1px solid var(--color-gray-300);
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  transition: all var(--transition-base);
-}
-
-.action-btn:hover {
-  background: var(--color-gray-200);
-  border-color: var(--color-gray-400);
-}
-
-.query-builder-btn {
-  background: var(--color-primary-50);
-  border-color: var(--color-primary-200);
-  color: var(--color-primary-600);
-  text-decoration: none;
-}
-
-.query-builder-btn:hover {
-  background: var(--color-primary-100);
-  border-color: var(--color-primary-400);
-  color: var(--color-primary-700);
-}
-
-.clear-btn {
-  background: var(--color-red-50);
-  border-color: var(--color-red-200);
-  color: var(--color-red-600);
-}
-
-.clear-btn:hover {
-  background: var(--color-red-100);
-  border-color: var(--color-red-300);
-}
-
-/* Search */
-.sidebar-search {
-  padding: var(--spacing-3);
-  background: white;
-  border-bottom: 1px solid var(--color-gray-200);
-}
-
-.search-input-wrapper {
-  position: relative;
-  display: flex;
-  align-items: center;
-  background: var(--color-gray-50);
-  border: 1px solid var(--color-gray-300);
-  border-radius: var(--radius-md);
-  padding: var(--spacing-2);
-  margin-bottom: var(--spacing-2);
-}
-
-.search-input-wrapper:focus-within {
-  border-color: var(--color-primary-500);
-  background: white;
-}
-
-.search-icon {
-  color: var(--color-gray-400);
-  margin-right: var(--spacing-2);
-}
-
-.search-input {
-  flex: 1;
-  border: none;
-  background: transparent;
-  font-size: var(--text-sm);
-  outline: none;
-  color: var(--color-gray-900);
-}
-
-.search-input::placeholder {
-  color: var(--color-gray-400);
-}
-
-.clear-search-btn {
-  background: none;
-  border: none;
-  padding: var(--spacing-1);
-  cursor: pointer;
-  color: var(--color-gray-400);
-  display: flex;
-  align-items: center;
-  border-radius: var(--radius-sm);
-  transition: all var(--transition-base);
-}
-
-.clear-search-btn:hover {
-  background: var(--color-gray-200);
-  color: var(--color-gray-600);
-}
-
-/* Filters Row */
-.filters-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--spacing-2);
-}
-
-.filter-checkbox {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-1-5);
-  font-size: var(--text-xs);
-  color: var(--color-gray-600);
-  cursor: pointer;
-  user-select: none;
-}
-
-.filter-checkbox input[type="checkbox"] {
-  cursor: pointer;
-  width: 14px;
-  height: 14px;
-  accent-color: var(--color-primary-500);
-}
-
-.expand-collapse-btns {
-  display: flex;
-  gap: var(--spacing-1);
-}
-
-.tiny-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  background: var(--color-gray-100);
-  border: 1px solid var(--color-gray-300);
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  transition: all var(--transition-base);
-  color: var(--color-gray-600);
-}
-
-.tiny-btn:hover {
-  background: var(--color-gray-200);
-  color: var(--color-gray-800);
-}
-
-/* Content */
-.sidebar-content {
-  flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
-}
-
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: var(--spacing-8);
-  text-align: center;
-  color: var(--color-gray-400);
-}
-
-.empty-icon {
-  margin-bottom: var(--spacing-3);
-  opacity: 0.5;
-}
-
-.empty-state p {
-  margin: 0 0 var(--spacing-3) 0;
-  font-size: var(--text-sm);
-  color: var(--color-gray-500);
-}
-
-.reset-btn {
-  padding: var(--spacing-2) var(--spacing-3);
-  background: var(--color-primary-500);
-  color: white;
-  border: none;
-  border-radius: var(--radius-md);
-  font-size: var(--text-sm);
-  font-weight: 600;
-  cursor: pointer;
-  transition: all var(--transition-base);
-}
-
-.reset-btn:hover {
-  background: var(--color-primary-600);
-}
-
-/* Namespaces */
-.namespaces-list {
-  padding: var(--spacing-2);
-}
-
-.namespace-group {
-  margin-bottom: var(--spacing-2);
-}
-
-.namespace-header {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-2);
-  padding: var(--spacing-2);
-  background: white;
-  border: 1px solid var(--color-gray-200);
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  transition: all var(--transition-base);
-  user-select: none;
-}
-
-.namespace-header:hover {
-  background: var(--color-gray-50);
-  border-color: var(--color-primary-300);
-}
-
-.collapse-icon {
-  color: var(--color-gray-400);
-  transition: transform var(--transition-base);
-}
-
-.namespace-icon {
-  color: var(--color-primary-500);
-}
-
-.namespace-name {
-  flex: 1;
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--color-gray-800);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.entity-count {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 24px;
-  height: 20px;
-  padding: 0 var(--spacing-1-5);
-  background: var(--color-primary-100);
-  color: var(--color-primary-700);
-  font-size: var(--text-xs);
-  font-weight: 700;
-  border-radius: var(--radius-full);
-}
-
-/* Entities List */
-.entities-list {
-  margin-top: var(--spacing-1);
-  padding-left: var(--spacing-6);
-}
-
-.entity-item {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-2);
-  padding: var(--spacing-2);
-  margin-bottom: var(--spacing-1);
-  background: white;
-  border: 1px solid var(--color-gray-200);
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  transition: all var(--transition-base);
-  user-select: none;
-}
-
-.entity-item:hover {
-  background: var(--color-primary-50);
-  border-color: var(--color-primary-300);
-  transform: translateX(2px);
-}
-
-.entity-item.selected {
-  background: var(--color-primary-100);
-  border-color: var(--color-primary-500);
-  border-width: 2px;
-  padding: calc(var(--spacing-2) - 1px);
-}
-
-.entity-icon {
-  color: var(--color-gray-500);
-  flex-shrink: 0;
-}
-
-.entity-item.selected .entity-icon {
-  color: var(--color-primary-600);
-}
-
-.entity-info {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-1);
-}
-
-.entity-name {
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--color-gray-900);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.entity-badges {
-  display: flex;
-  gap: var(--spacing-1);
-  flex-wrap: wrap;
-}
-
-.badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 1px var(--spacing-1-5);
-  font-size: 10px;
-  font-weight: 600;
-  border-radius: var(--radius-sm);
-  white-space: nowrap;
-}
-
-.badge-fields {
-  background: var(--color-blue-100);
-  color: var(--color-blue-700);
-}
-
-.badge-relations {
-  background: var(--color-purple-100);
-  color: var(--color-purple-700);
-}
-
-/* Footer */
-.sidebar-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--spacing-3);
-  padding: var(--spacing-3);
-  background: white;
-  border-top: 1px solid var(--color-gray-200);
-}
-
-.footer-stats {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-1);
-}
-
-.stat-item {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-1-5);
-  font-size: var(--text-xs);
-  color: var(--color-gray-600);
-}
-
-.stat-item.selected-count {
-  color: var(--color-primary-600);
-  font-weight: 600;
-}
-
-.select-all-btn {
-  padding: var(--spacing-1-5) var(--spacing-3);
-  background: var(--color-gray-100);
-  border: 1px solid var(--color-gray-300);
-  border-radius: var(--radius-md);
-  font-size: var(--text-xs);
-  font-weight: 600;
-  color: var(--color-gray-700);
-  cursor: pointer;
-  transition: all var(--transition-base);
-  white-space: nowrap;
-}
-
-.select-all-btn:hover {
-  background: var(--color-primary-500);
-  border-color: var(--color-primary-500);
-  color: white;
-}
-
-/* Scrollbar styling */
-.sidebar-content::-webkit-scrollbar {
-  width: 8px;
-}
-
-.sidebar-content::-webkit-scrollbar-track {
-  background: var(--color-gray-100);
-}
-
-.sidebar-content::-webkit-scrollbar-thumb {
-  background: var(--color-gray-300);
-  border-radius: var(--radius-full);
-}
-
-.sidebar-content::-webkit-scrollbar-thumb:hover {
-  background: var(--color-gray-400);
-}
-</style>
