@@ -9,46 +9,32 @@ import { getEntitiesFromPaths, getRelationsFromPaths } from '@/utils/pathFinder'
 
 const schemaStore = useSchemaStore()
 
-const viewMode = ref('schema') // 'schema', 'pathfinder', or 'query'
+const viewMode = ref('schema')
 const pathFinderPaths = ref([])
 
 onMounted(() => {
-  // Auto-select first 5 entities if none selected (for initial view in schema mode)
   if (schemaStore.selectedEntities.size === 0 && schemaStore.entities.length > 0) {
     const firstFive = schemaStore.entities
       .slice(0, Math.min(5, schemaStore.entities.length))
       .map(e => e.fqcn || e.name)
-
     schemaStore.setSelectedEntities(firstFive)
   }
 })
 
-// Entities to display in graph
 const graphEntities = computed(() => {
-  // Path Finder mode: show entities from found paths
   if (viewMode.value === 'pathfinder' && pathFinderPaths.value.length > 0) {
     return getEntitiesFromPaths(pathFinderPaths.value)
   }
-
-  // Schema mode: show selected entities + their relations
-  if (schemaStore.selectedEntities.size === 0) {
-    return []
-  }
-
+  if (schemaStore.selectedEntities.size === 0) return []
   return schemaStore.selectedEntitiesWithRelations
 })
 
-// Relations between visible entities
 const graphRelations = computed(() => {
-  // Path Finder mode: show relations from paths
   if (viewMode.value === 'pathfinder' && pathFinderPaths.value.length > 0) {
     return getRelationsFromPaths(pathFinderPaths.value, graphEntities.value)
   }
-
-  // Schema mode: compute relations from visible entities
   const rels = []
   const seenPairs = new Set()
-
   const visibleEntities = graphEntities.value
   const entityMapByFqcn = new Map(visibleEntities.map(e => [e.fqcn || e.name, e]))
   const entityMapByName = new Map(visibleEntities.map(e => [e.name, e]))
@@ -57,15 +43,12 @@ const graphRelations = computed(() => {
     if (entity.relations) {
       entity.relations.forEach((relation) => {
         const target = entityMapByName.get(relation.target) || entityMapByFqcn.get(relation.target)
-
         if (target) {
           const entityA = entity.fqcn || entity.name
           const entityB = target.fqcn || target.name
           const pairKey = [entityA, entityB].sort().join('|')
-
           if (!seenPairs.has(pairKey)) {
             seenPairs.add(pairKey)
-
             rels.push({
               from: entity,
               to: target,
@@ -78,35 +61,21 @@ const graphRelations = computed(() => {
       })
     }
   })
-
   return rels
 })
 
-// Switch view mode
 function switchMode(mode) {
   viewMode.value = mode
-
   if (mode === 'pathfinder') {
-    // Clear path finder results when switching
     pathFinderPaths.value = []
   }
 }
 
-// Handle visualize query from Query Builder
-function handleVisualizeQuery(result) {
-  // Switch to schema mode and show the entities
-  viewMode.value = 'schema'
-}
-
-// Handle entity click from graph (open drawer)
 function handleEntityClick(entity) {
   const fqcn = entity.fqcn || entity.name
-
-  // Open drawer with entity details
   schemaStore.selectEntity(fqcn)
 }
 
-// Handle entity double-click from graph (add to selection in schema mode)
 function handleEntityDoubleClick(entity) {
   if (viewMode.value === 'schema') {
     const fqcn = entity.fqcn || entity.name
@@ -114,43 +83,42 @@ function handleEntityDoubleClick(entity) {
   }
 }
 
-// Handle paths found from PathFinderPanel
 function handlePathsFound(paths) {
   pathFinderPaths.value = paths
 }
 
-// Handle show path from PathFinderPanel
 function handleShowPath(paths) {
   pathFinderPaths.value = paths
 }
 </script>
 
 <template>
-  <div class="schema-view-layout">
-    <!-- Left Sidebar (35%) -->
-    <aside class="schema-sidebar">
-      <!-- Tabs -->
-      <div class="sidebar-tabs">
+  <div class="flex h-full bg-[var(--color-background)]">
+    <aside class="w-[35%] min-w-[320px] max-w-[500px] flex-shrink-0 bg-[var(--color-surface)] flex flex-col border-r border-[var(--color-border)]">
+      <div class="flex border-b-2 border-[var(--color-border)]">
         <button
           @click="switchMode('schema')"
-          class="tab-btn"
-          :class="{ active: viewMode === 'schema' }"
+          class="flex-1 flex items-center justify-center gap-2 px-4 py-3 text-sm font-semibold transition-all border-b-2 -mb-0.5"
+          :class="viewMode === 'schema'
+            ? 'text-[var(--color-primary)] border-[var(--color-primary)] bg-[var(--color-surface)]'
+            : 'text-[var(--color-text-secondary)] border-transparent bg-[var(--color-surface-raised)] hover:text-[var(--color-text-primary)]'"
         >
-          <Icon name="table-cells" :size="18" />
+          <Icon name="table-cells" class="w-4 h-4" />
           <span>Schema</span>
         </button>
         <button
           @click="switchMode('pathfinder')"
-          class="tab-btn"
-          :class="{ active: viewMode === 'pathfinder' }"
+          class="flex-1 flex items-center justify-center gap-2 px-4 py-3 text-sm font-semibold transition-all border-b-2 -mb-0.5"
+          :class="viewMode === 'pathfinder'
+            ? 'text-[var(--color-primary)] border-[var(--color-primary)] bg-[var(--color-surface)]'
+            : 'text-[var(--color-text-secondary)] border-transparent bg-[var(--color-surface-raised)] hover:text-[var(--color-text-primary)]'"
         >
-          <Icon name="map" :size="18" />
+          <Icon name="map" class="w-4 h-4" />
           <span>Path Finder</span>
         </button>
       </div>
 
-      <!-- Content based on mode -->
-      <div class="sidebar-content">
+      <div class="flex-1 overflow-hidden">
         <EntitySidebar v-if="viewMode === 'schema'" />
         <PathFinderPanel
           v-else-if="viewMode === 'pathfinder'"
@@ -160,30 +128,26 @@ function handleShowPath(paths) {
       </div>
     </aside>
 
-    <!-- Right Content (65%) -->
-    <main class="schema-main">
-      <!-- Top Bar with info -->
-      <div v-if="graphEntities.length > 0" class="info-bar">
-        <!-- Schema mode info -->
-        <div v-if="viewMode === 'schema'" class="info-content">
-          <Icon name="check-circle" :size="16" />
+    <main class="flex-1 flex flex-col overflow-hidden">
+      <div v-if="graphEntities.length > 0" class="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-hover)] text-white shadow-md z-10">
+        <div v-if="viewMode === 'schema'" class="flex items-center gap-2 text-sm">
+          <Icon name="check-circle" class="w-4 h-4" />
           <span>
             <strong>{{ schemaStore.selectedEntities.size }}</strong> {{ schemaStore.selectedEntities.size === 1 ? 'entity' : 'entities' }} selected
           </span>
-          <span class="separator">•</span>
-          <span class="relations-info">
+          <span class="opacity-60 mx-1">•</span>
+          <span class="opacity-90">
             Showing {{ graphEntities.length }} entities with {{ graphRelations.length }} relations
           </span>
         </div>
 
-        <!-- Path Finder mode info -->
-        <div v-else-if="viewMode === 'pathfinder'" class="info-content pathfinder-info">
-          <Icon name="map" :size="16" />
+        <div v-else-if="viewMode === 'pathfinder'" class="flex items-center gap-2 text-sm">
+          <Icon name="map" class="w-4 h-4" />
           <span>
             <strong>{{ pathFinderPaths.length }}</strong> {{ pathFinderPaths.length === 1 ? 'path' : 'paths' }} found
           </span>
-          <span class="separator">•</span>
-          <span class="relations-info">
+          <span class="opacity-60 mx-1">•</span>
+          <span class="opacity-90">
             {{ graphEntities.length }} entities, {{ graphRelations.length }} relations
           </span>
         </div>
@@ -191,85 +155,61 @@ function handleShowPath(paths) {
         <button
           v-if="viewMode === 'schema'"
           @click="schemaStore.clearSelectedEntities()"
-          class="clear-btn"
+          class="flex items-center gap-2 px-3 py-1.5 bg-white/20 hover:bg-white/30 border border-white/30 hover:border-white/50 rounded-lg text-sm font-semibold transition-all hover:-translate-y-0.5"
         >
-          <Icon name="x-mark" :size="16" />
+          <Icon name="x-mark" class="w-4 h-4" />
           <span>Clear</span>
         </button>
       </div>
 
-      <!-- Graph Canvas -->
-      <div class="graph-container">
-        <!-- Empty state -->
-        <div v-if="graphEntities.length === 0" class="empty-state">
-          <Icon
-            :name="viewMode === 'schema' ? 'cursor-arrow-rays' : 'map'"
-            :size="64"
-            class="empty-icon"
-          />
+      <div class="flex-1 relative overflow-hidden bg-gradient-to-b from-[var(--color-surface-raised)] to-[var(--color-background)]">
+        <div v-if="graphEntities.length === 0" class="absolute inset-0 flex items-center justify-center">
+          <div class="text-center max-w-md p-8">
+            <Icon
+              :name="viewMode === 'schema' ? 'cursor-arrow-rays' : 'map'"
+              class="w-16 h-16 mx-auto mb-4 text-[var(--color-text-tertiary)]"
+            />
 
-          <!-- Schema mode empty state -->
-          <div v-if="viewMode === 'schema'">
-            <h3>Select entities to visualize</h3>
-            <p>Choose one or more entities from the sidebar to see their relationships</p>
-            <div class="tips">
-              <div class="tip-item">
-                <Icon name="hand-raised" :size="16" />
-                <span>Click to select entity</span>
-              </div>
-              <div class="tip-item">
-                <Icon name="command-line" :size="16" />
-                <span>Cmd/Ctrl+Click for multi-select</span>
-              </div>
-              <div class="tip-item">
-                <Icon name="magnifying-glass" :size="16" />
-                <span>Search to find entities quickly</span>
+            <div v-if="viewMode === 'schema'">
+              <h3 class="text-2xl font-bold text-[var(--color-text-primary)] mb-2">Select entities to visualize</h3>
+              <p class="text-base text-[var(--color-text-secondary)] mb-6">Choose one or more entities from the sidebar to see their relationships</p>
+              <div class="flex flex-col gap-3 max-w-xs mx-auto">
+                <div class="flex items-center gap-3 p-3 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg hover:border-[var(--color-primary)]/30 hover:bg-[var(--color-primary-light)] transition-all">
+                  <Icon name="hand-raised" class="w-4 h-4 text-[var(--color-text-tertiary)]" />
+                  <span class="text-sm text-[var(--color-text-secondary)] font-medium">Click to select entity</span>
+                </div>
+                <div class="flex items-center gap-3 p-3 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg hover:border-[var(--color-primary)]/30 hover:bg-[var(--color-primary-light)] transition-all">
+                  <Icon name="command-line" class="w-4 h-4 text-[var(--color-text-tertiary)]" />
+                  <span class="text-sm text-[var(--color-text-secondary)] font-medium">Cmd/Ctrl+Click for multi-select</span>
+                </div>
+                <div class="flex items-center gap-3 p-3 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg hover:border-[var(--color-primary)]/30 hover:bg-[var(--color-primary-light)] transition-all">
+                  <Icon name="magnifying-glass" class="w-4 h-4 text-[var(--color-text-tertiary)]" />
+                  <span class="text-sm text-[var(--color-text-secondary)] font-medium">Search to find entities quickly</span>
+                </div>
               </div>
             </div>
-          </div>
 
-          <!-- Path Finder mode empty state -->
-          <div v-else-if="viewMode === 'pathfinder'">
-            <h3>Find connection paths</h3>
-            <p>Select a source and target entity to discover how they're connected</p>
-            <div class="tips">
-              <div class="tip-item">
-                <Icon name="arrow-up-circle" :size="16" />
-                <span>Choose source entity</span>
-              </div>
-              <div class="tip-item">
-                <Icon name="arrow-down-circle" :size="16" />
-                <span>Choose target entity</span>
-              </div>
-              <div class="tip-item">
-                <Icon name="magnifying-glass-circle" :size="16" />
-                <span>Click "Find Paths" to discover connections</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Query Builder mode empty state -->
-          <div v-else-if="viewMode === 'query'">
-            <h3>Generate SQL from natural language</h3>
-            <p>Describe your query in plain language and get SQL automatically</p>
-            <div class="tips">
-              <div class="tip-item">
-                <Icon name="command-line" :size="16" />
-                <span>Type your query in natural language</span>
-              </div>
-              <div class="tip-item">
-                <Icon name="sparkles" :size="16" />
-                <span>Click "Generate SQL" to get the query</span>
-              </div>
-              <div class="tip-item">
-                <Icon name="eye" :size="16" />
-                <span>Visualize entities in the graph</span>
+            <div v-else-if="viewMode === 'pathfinder'">
+              <h3 class="text-2xl font-bold text-[var(--color-text-primary)] mb-2">Find connection paths</h3>
+              <p class="text-base text-[var(--color-text-secondary)] mb-6">Select a source and target entity to discover how they're connected</p>
+              <div class="flex flex-col gap-3 max-w-xs mx-auto">
+                <div class="flex items-center gap-3 p-3 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg hover:border-[var(--color-primary)]/30 hover:bg-[var(--color-primary-light)] transition-all">
+                  <Icon name="arrow-up-circle" class="w-4 h-4 text-[var(--color-text-tertiary)]" />
+                  <span class="text-sm text-[var(--color-text-secondary)] font-medium">Choose source entity</span>
+                </div>
+                <div class="flex items-center gap-3 p-3 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg hover:border-[var(--color-primary)]/30 hover:bg-[var(--color-primary-light)] transition-all">
+                  <Icon name="arrow-down-circle" class="w-4 h-4 text-[var(--color-text-tertiary)]" />
+                  <span class="text-sm text-[var(--color-text-secondary)] font-medium">Choose target entity</span>
+                </div>
+                <div class="flex items-center gap-3 p-3 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg hover:border-[var(--color-primary)]/30 hover:bg-[var(--color-primary-light)] transition-all">
+                  <Icon name="magnifying-glass-circle" class="w-4 h-4 text-[var(--color-text-tertiary)]" />
+                  <span class="text-sm text-[var(--color-text-secondary)] font-medium">Click "Find Paths" to discover connections</span>
+                </div>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- Graph -->
         <SchemaGraph
           v-else
           :entities="graphEntities"
@@ -282,236 +222,3 @@ function handleShowPath(paths) {
     </main>
   </div>
 </template>
-
-<style scoped>
-.schema-view-layout {
-  height: 100%;
-  display: flex;
-  background: var(--color-gray-50);
-}
-
-/* Sidebar */
-.schema-sidebar {
-  width: 35%;
-  min-width: 320px;
-  max-width: 500px;
-  height: 100%;
-  flex-shrink: 0;
-  background: white;
-  display: flex;
-  flex-direction: column;
-}
-
-/* Tabs */
-.sidebar-tabs {
-  display: flex;
-  background: white;
-  border-bottom: 2px solid var(--color-gray-200);
-}
-
-.tab-btn {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--spacing-2);
-  padding: var(--spacing-3) var(--spacing-4);
-  background: var(--color-gray-50);
-  border: none;
-  border-bottom: 3px solid transparent;
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--color-gray-600);
-  cursor: pointer;
-  transition: all var(--transition-base);
-}
-
-.tab-btn:hover {
-  background: var(--color-gray-100);
-  color: var(--color-gray-900);
-}
-
-.tab-btn.active {
-  background: white;
-  color: var(--color-primary-600);
-  border-bottom-color: var(--color-primary-500);
-}
-
-.tab-btn.tab-link {
-  text-decoration: none;
-}
-
-/* Sidebar Content */
-.sidebar-content {
-  flex: 1;
-  overflow: hidden;
-}
-
-/* Main Content */
-.schema-main {
-  flex: 1;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-/* Info Bar */
-.info-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: var(--spacing-3) var(--spacing-4);
-  background: linear-gradient(135deg, var(--color-primary-500) 0%, var(--color-primary-600) 100%);
-  color: white;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  z-index: 10;
-}
-
-.info-bar .pathfinder-info {
-  background: linear-gradient(135deg, var(--color-purple-500) 0%, var(--color-purple-600) 100%);
-}
-
-.info-content {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-2);
-  font-size: var(--text-sm);
-}
-
-.info-content strong {
-  font-weight: 700;
-}
-
-.separator {
-  opacity: 0.6;
-  margin: 0 var(--spacing-1);
-}
-
-.relations-info {
-  opacity: 0.9;
-  font-size: var(--text-sm);
-}
-
-.clear-btn {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-2);
-  padding: var(--spacing-2) var(--spacing-3);
-  background: rgba(255, 255, 255, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: var(--radius-md);
-  color: white;
-  font-size: var(--text-sm);
-  font-weight: 600;
-  cursor: pointer;
-  transition: all var(--transition-base);
-}
-
-.clear-btn:hover {
-  background: rgba(255, 255, 255, 0.3);
-  border-color: rgba(255, 255, 255, 0.5);
-  transform: translateY(-1px);
-}
-
-/* Graph Container */
-.graph-container {
-  flex: 1;
-  position: relative;
-  overflow: hidden;
-  background: linear-gradient(to bottom, #f9fafb 0%, #ffffff 100%);
-}
-
-/* Empty State */
-.empty-state {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  text-align: center;
-  max-width: 500px;
-  padding: var(--spacing-8);
-}
-
-.empty-icon {
-  margin: 0 auto var(--spacing-4);
-  color: var(--color-gray-300);
-}
-
-.empty-state h3 {
-  font-size: var(--text-2xl);
-  font-weight: 700;
-  color: var(--color-gray-700);
-  margin: 0 0 var(--spacing-2) 0;
-}
-
-.empty-state p {
-  font-size: var(--text-base);
-  color: var(--color-gray-500);
-  margin: 0 0 var(--spacing-6) 0;
-  line-height: 1.6;
-}
-
-.tips {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-3);
-  align-items: flex-start;
-  text-align: left;
-  margin: 0 auto;
-  max-width: 320px;
-}
-
-.tip-item {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-3);
-  padding: var(--spacing-3);
-  background: white;
-  border: 1px solid var(--color-gray-200);
-  border-radius: var(--radius-lg);
-  width: 100%;
-  transition: all var(--transition-base);
-}
-
-.tip-item:hover {
-  border-color: var(--color-primary-300);
-  background: var(--color-primary-50);
-  transform: translateX(4px);
-}
-
-.tip-item span {
-  font-size: var(--text-sm);
-  color: var(--color-gray-600);
-  font-weight: 500;
-}
-
-.tip-item:hover span {
-  color: var(--color-primary-700);
-}
-
-/* Responsive */
-@media (max-width: 1280px) {
-  .schema-sidebar {
-    width: 40%;
-  }
-}
-
-@media (max-width: 1024px) {
-  .schema-view-layout {
-    flex-direction: column;
-  }
-
-  .schema-sidebar {
-    width: 100%;
-    max-width: none;
-    height: 40vh;
-    border-right: none;
-    border-bottom: 2px solid var(--color-gray-300);
-  }
-
-  .schema-main {
-    height: 60vh;
-  }
-}
-</style>
