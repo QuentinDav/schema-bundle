@@ -9,10 +9,10 @@ import tailwindcss from '@tailwindcss/vite'
 export default defineConfig({
   base: '/schema-doc/',
   plugins: [
+    tailwindcss(),
     vue(),
     vueJsx(),
     vueDevTools(),
-    tailwindcss(),
   ],
   resolve: {
     alias: {
