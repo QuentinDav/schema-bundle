@@ -1,4 +1,4 @@
-t<script setup>
+<script setup>
 import { computed } from 'vue'
 import { Handle, Position } from '@vue-flow/core'
 import Icon from './Icon.vue'
@@ -12,13 +12,13 @@ const props = defineProps({
 
 function getNamespaceColor(namespace) {
   const colors = [
-    '#667eea',
-    '#3b82f6',
-    '#10b981',
-    '#f59e0b',
-    '#06b6d4',
+    '#6366f1',
     '#8b5cf6',
     '#ec4899',
+    '#f59e0b',
+    '#10b981',
+    '#06b6d4',
+    '#3b82f6',
     '#14b8a6'
   ]
   const hash = namespace.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
@@ -63,12 +63,12 @@ const hasMoreFields = computed(() => (props.data.fields?.length || 0) > 8)
 </script>
 
 <template>
-  <div class="database-table-node">
+  <div class="min-w-[280px] bg-[var(--color-surface)] rounded-lg shadow-lg overflow-hidden border border-[var(--color-border)] transition-all duration-200 hover:shadow-xl hover:-translate-y-1">
     <Handle
       id="top"
       type="target"
       :position="Position.Top"
-      class="node-handle node-handle-top"
+      class="w-2.5 h-2.5 bg-transparent border-0 opacity-0 pointer-events-none !-top-1"
       :connectable="false"
     />
 
@@ -76,178 +76,43 @@ const hasMoreFields = computed(() => (props.data.fields?.length || 0) > 8)
       id="bottom"
       type="source"
       :position="Position.Bottom"
-      class="node-handle node-handle-bottom"
+      class="w-2.5 h-2.5 bg-transparent border-0 opacity-0 pointer-events-none !-bottom-1"
       :connectable="false"
     />
 
-    <div class="table-header" :style="{ backgroundColor: headerColor }">
-      <div class="table-icon">
-        <Icon name="table-cells" :size="16" />
+    <div class="px-4 py-3 flex items-center gap-2.5 text-white" :style="{ backgroundColor: headerColor }">
+      <div class="flex items-center justify-center w-7 h-7 bg-white/20 rounded-md flex-shrink-0">
+        <Icon name="table-cells" class="w-4 h-4" />
       </div>
-      <div class="table-info">
-        <div class="table-name">{{ data.name }}</div>
-        <div v-if="data.table" class="table-db-name">{{ data.table }}</div>
+      <div class="flex-1 min-w-0">
+        <div class="text-sm font-bold truncate">{{ data.name }}</div>
+        <div v-if="data.table" class="text-[11px] opacity-85 truncate font-mono">{{ data.table }}</div>
       </div>
     </div>
 
-    <div class="table-body">
+    <div class="py-2">
       <div
         v-for="(field, index) in fieldsToShow"
         :key="index"
-        class="table-field"
+        class="px-4 py-1.5 flex items-center justify-between hover:bg-[var(--color-surface-hover)] transition-colors"
       >
-        <div class="field-left">
+        <div class="flex items-center gap-1.5 flex-1 min-w-0">
           <Icon
             v-if="isPrimaryKey(field)"
             name="key"
-            :size="12"
-            class="field-key-icon"
+            class="w-3 h-3 text-[var(--color-warning)] flex-shrink-0"
           />
-          <span class="field-name">{{ field.name }}</span>
-          <span v-if="field.nullable" class="field-nullable">?</span>
+          <span class="text-xs font-medium text-[var(--color-text-primary)] truncate">{{ field.name }}</span>
+          <span v-if="field.nullable" class="text-[10px] text-[var(--color-text-tertiary)] font-semibold">?</span>
         </div>
-        <div class="field-type" :style="{ color: getTypeColor(field.type) }">
+        <div class="text-[11px] font-semibold whitespace-nowrap ml-2" :style="{ color: getTypeColor(field.type) }">
           {{ formatType(field) }}
         </div>
       </div>
 
-      <div v-if="hasMoreFields" class="more-fields">
+      <div v-if="hasMoreFields" class="px-4 py-2 text-[11px] text-[var(--color-text-tertiary)] italic text-center bg-[var(--color-surface-raised)]">
         +{{ data.fields.length - 8 }} more fields...
       </div>
     </div>
   </div>
 </template>
-
-<style scoped>
-.database-table-node {
-  min-width: 280px;
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  overflow: hidden;
-  border: 1px solid var(--color-gray-200);
-  transition: all 0.2s ease;
-}
-
-.database-table-node:hover {
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
-  transform: translateY(-2px);
-}
-
-.table-header {
-  padding: 12px 16px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  color: white;
-}
-
-.table-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 6px;
-}
-
-.table-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.table-name {
-  font-size: 14px;
-  font-weight: 700;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.table-db-name {
-  font-size: 11px;
-  opacity: 0.85;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.table-body {
-  padding: 8px 0;
-  background: white;
-}
-
-.table-field {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 6px 16px;
-  transition: background 0.15s ease;
-}
-
-.table-field:hover {
-  background: var(--color-gray-50);
-}
-
-.field-left {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex: 1;
-  min-width: 0;
-}
-
-.field-key-icon {
-  color: #f59e0b;
-  flex-shrink: 0;
-}
-
-.field-name {
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--color-gray-800);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.field-nullable {
-  font-size: 10px;
-  color: var(--color-gray-400);
-  font-weight: 600;
-}
-
-.field-type {
-  font-size: 11px;
-  font-weight: 600;
-  white-space: nowrap;
-  margin-left: 8px;
-}
-
-.more-fields {
-  padding: 8px 16px;
-  font-size: 11px;
-  color: var(--color-gray-500);
-  font-style: italic;
-  text-align: center;
-  background: var(--color-gray-50);
-}
-
-.node-handle {
-  width: 10px;
-  height: 10px;
-  background: transparent;
-  border: none;
-  opacity: 0;
-  pointer-events: none;
-}
-
-.node-handle-top {
-  top: -5px;
-}
-
-.node-handle-bottom {
-  bottom: -5px;
-}
-</style>
