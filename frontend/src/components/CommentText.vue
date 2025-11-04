@@ -56,51 +56,15 @@ const parsedContent = computed(() => {
 </script>
 
 <template>
-  <span class="comment-text-parsed">
+  <span class="text-sm text-[var(--color-text-primary)] leading-relaxed whitespace-pre-wrap break-words">
     <template v-for="(part, index) in parsedContent" :key="index">
       <span v-if="part.type === 'text'">{{ part.content }}</span>
-      <span v-else-if="part.type === 'mention'" class="mention-tag">
+      <span v-else-if="part.type === 'mention'" class="text-[var(--color-primary)] font-semibold bg-[var(--color-primary-light)] px-1.5 py-0.5 rounded transition-all duration-200 hover:bg-[var(--color-primary)]/20">
         {{ part.content }}
       </span>
-      <span v-else-if="part.type === 'field'" class="field-tag">
+      <span v-else-if="part.type === 'field'" class="inline-block font-mono text-[13px] font-semibold text-[var(--color-text-secondary)] bg-[var(--color-surface-raised)] px-1.5 py-0.5 rounded border border-[var(--color-border)] transition-all duration-200 hover:border-[var(--color-primary)]/30 hover:text-[var(--color-primary)]">
         {{ part.content }}
       </span>
     </template>
   </span>
 </template>
-
-<style scoped>
-.comment-text-parsed {
-  font-size: 0.875rem;
-  color: #374151;
-  line-height: 1.6;
-  white-space: pre-wrap;
-  word-wrap: break-word;
-}
-
-.mention-tag {
-  color: #667eea;
-  font-weight: 600;
-  background: rgba(102, 126, 234, 0.1);
-  padding: 0.125rem 0.375rem;
-  border-radius: 4px;
-  transition: all 0.2s ease;
-}
-
-.mention-tag:hover {
-  background: rgba(102, 126, 234, 0.2);
-}
-
-.field-tag {
-  display: inline-block;
-  font-family: 'Courier New', monospace;
-  font-size: 0.8125rem;
-  font-weight: 600;
-  color: #4b5563;
-  background: #e5e7eb;
-  padding: 0.125rem 0.5rem;
-  border-radius: 6px;
-  border: 1px solid #d1d5db;
-  margin: 0 0.125rem;
-}
-</style>
