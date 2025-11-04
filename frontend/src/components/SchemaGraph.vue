@@ -2,7 +2,6 @@
 import { ref, computed, watch } from 'vue'
 import { VueFlow, useVueFlow, Panel } from '@vue-flow/core'
 import { Background } from '@vue-flow/background'
-import { Controls } from '@vue-flow/controls'
 import DatabaseTableNode from './DatabaseTableNode.vue'
 import Icon from './Icon.vue'
 import ELK from 'elkjs/lib/elk.bundled.js'
@@ -30,7 +29,7 @@ const nodeTypes = {
   databaseTable: DatabaseTableNode
 }
 
-const { fitView, zoomIn, zoomOut, setCenter, getNodes, getEdges } = useVueFlow()
+const { fitView, zoomIn, zoomOut } = useVueFlow()
 
 function extractNamespace(fqcn) {
   const parts = fqcn.split('\\')
@@ -64,27 +63,22 @@ const isCalculating = ref(false)
 const nodes = computed(() => {
   const entitiesKey = props.entities.map(e => e.fqcn || e.name).sort().join(',')
 
-  // If currently calculating and we have old layout, keep showing it
   if (isCalculating.value && nodesWithLayout.value.length > 0) {
     return nodesWithLayout.value
   }
 
-  // If layout ready for current entities, show it
   if (nodesWithLayout.value.length > 0 && entitiesKey === currentEntitiesKey.value) {
     return nodesWithLayout.value
   }
 
-  // If no entities, return empty
   if (props.entities.length === 0) {
     return []
   }
 
-  // Otherwise keep old layout until new one is calculated
   if (nodesWithLayout.value.length > 0) {
     return nodesWithLayout.value
   }
 
-  // First render: return empty, layout will be calculated
   return []
 })
 
@@ -120,8 +114,8 @@ const edges = computed(() => {
         fontSize: 11,
       },
       labelBgStyle: {
-        fill: 'white',
-        fillOpacity: 0.9,
+        fill: '#141414',
+        fillOpacity: 0.95,
       },
       labelBgPadding: [4, 6],
       labelBgBorderRadius: 4,
@@ -142,7 +136,6 @@ async function calculateLayout() {
     return
   }
 
-  // Mark as calculating (keeps old layout visible)
   isCalculating.value = true
 
   const elkNodes = props.entities.map(entity => ({
@@ -201,7 +194,6 @@ async function calculateLayout() {
   } catch (error) {
     console.error('ELK layout error:', error)
   } finally {
-    // Done calculating
     isCalculating.value = false
   }
 }
@@ -290,7 +282,7 @@ function exportPNG() {
     canvas.height = (bbox.height + padding * 2) * scale
     const ctx = canvas.getContext('2d')
 
-    ctx.fillStyle = '#ffffff'
+    ctx.fillStyle = '#0a0a0a'
     ctx.fillRect(0, 0, canvas.width, canvas.height)
 
     ctx.scale(scale, scale)
@@ -340,7 +332,7 @@ defineExpose({
 </script>
 
 <template>
-  <div class="schema-graph-container">
+  <div class="w-full h-full bg-[var(--color-background)]">
     <VueFlow
       :nodes="nodes"
       :edges="edges"
@@ -359,65 +351,56 @@ defineExpose({
       @node-click="onNodeClick"
       @node-double-click="onNodeDoubleClick"
       @node-mouse-enter="onNodeMouseEnter"
-      class="schema-flow"
+      class="w-full h-full"
     >
-      <!-- Background with dots pattern -->
       <Background
-        pattern-color="#e5e7eb"
+        pattern-color="#2a2a2a"
         :gap="16"
         :size="1"
         variant="dots"
       />
 
-      <!-- Controls Panel -->
-      <Controls
-        :show-zoom="true"
-        :show-fit-view="true"
-        :show-interactive="false"
-        position="top-right"
-      />
-
-      <!-- Custom Legend Panel -->
-      <Panel position="bottom-left" class="legend-panel">
-        <div class="graph-legend">
-          <div class="legend-title">Relations</div>
-          <div class="legend-item">
-            <div class="legend-line" style="background: #10b981"></div>
-            <span>One to One (1:1)</span>
-          </div>
-          <div class="legend-item">
-            <div class="legend-line" style="background: #3b82f6"></div>
-            <span>Many to One (N:1)</span>
-          </div>
-          <div class="legend-item">
-            <div class="legend-line" style="background: #f59e0b"></div>
-            <span>One to Many (1:N)</span>
-          </div>
-          <div class="legend-item">
-            <div class="legend-line" style="background: #ef4444"></div>
-            <span>Many to Many (N:N)</span>
+      <Panel position="bottom-left" class="!bg-transparent !border-0 !shadow-none">
+        <div class="bg-[var(--color-surface)] px-4 py-3 rounded-lg shadow-lg border border-[var(--color-border)]">
+          <div class="text-xs font-bold mb-2.5 text-[var(--color-text-primary)]">Relations</div>
+          <div class="flex flex-col gap-1.5">
+            <div class="flex items-center gap-2">
+              <div class="w-8 h-0.5 rounded-full bg-[#10b981]"></div>
+              <span class="text-[11px] text-[var(--color-text-secondary)]">One to One (1:1)</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <div class="w-8 h-0.5 rounded-full bg-[#3b82f6]"></div>
+              <span class="text-[11px] text-[var(--color-text-secondary)]">Many to One (N:1)</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <div class="w-8 h-0.5 rounded-full bg-[#f59e0b]"></div>
+              <span class="text-[11px] text-[var(--color-text-secondary)]">One to Many (1:N)</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <div class="w-8 h-0.5 rounded-full bg-[#ef4444]"></div>
+              <span class="text-[11px] text-[var(--color-text-secondary)]">Many to Many (N:N)</span>
+            </div>
           </div>
         </div>
       </Panel>
 
-      <!-- Custom Controls Panel -->
-      <Panel position="top-right" class="controls-panel">
-        <div class="graph-controls">
-          <button @click="handleFitView" class="control-btn" title="Fit to view">
-            <Icon name="arrows-pointing-out" :size="20" />
+      <Panel position="top-right" class="!bg-transparent !border-0 !shadow-none">
+        <div class="flex flex-col gap-2">
+          <button @click="handleFitView" class="w-11 h-11 flex items-center justify-center bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg cursor-pointer transition-all duration-200 hover:bg-[var(--color-surface-hover)] hover:border-[var(--color-border-hover)] hover:-translate-y-0.5 shadow-lg" title="Fit to view">
+            <Icon name="arrows-pointing-out" :size="20" class="text-[var(--color-text-primary)]" />
           </button>
-          <button @click="handleZoomIn" class="control-btn" title="Zoom in">
-            <Icon name="plus" :size="20" />
+          <button @click="handleZoomIn" class="w-11 h-11 flex items-center justify-center bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg cursor-pointer transition-all duration-200 hover:bg-[var(--color-surface-hover)] hover:border-[var(--color-border-hover)] hover:-translate-y-0.5 shadow-lg" title="Zoom in">
+            <Icon name="plus" :size="20" class="text-[var(--color-text-primary)]" />
           </button>
-          <button @click="handleZoomOut" class="control-btn" title="Zoom out">
-            <Icon name="minus" :size="20" />
+          <button @click="handleZoomOut" class="w-11 h-11 flex items-center justify-center bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg cursor-pointer transition-all duration-200 hover:bg-[var(--color-surface-hover)] hover:border-[var(--color-border-hover)] hover:-translate-y-0.5 shadow-lg" title="Zoom out">
+            <Icon name="minus" :size="20" class="text-[var(--color-text-primary)]" />
           </button>
-          <div class="divider"></div>
-          <button @click="exportSVG" class="control-btn" title="Export SVG">
-            <Icon name="arrow-down-tray" :size="20" />
+          <div class="w-full h-px bg-[var(--color-border)] my-1"></div>
+          <button @click="exportSVG" class="w-11 h-11 flex items-center justify-center bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg cursor-pointer transition-all duration-200 hover:bg-[var(--color-surface-hover)] hover:border-[var(--color-border-hover)] hover:-translate-y-0.5 shadow-lg" title="Export SVG">
+            <Icon name="arrow-down-tray" :size="20" class="text-[var(--color-text-primary)]" />
           </button>
-          <button @click="exportPNG" class="control-btn" title="Export PNG">
-            <Icon name="photo" :size="20" />
+          <button @click="exportPNG" class="w-11 h-11 flex items-center justify-center bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg cursor-pointer transition-all duration-200 hover:bg-[var(--color-surface-hover)] hover:border-[var(--color-border-hover)] hover:-translate-y-0.5 shadow-lg" title="Export PNG">
+            <Icon name="photo" :size="20" class="text-[var(--color-text-primary)]" />
           </button>
         </div>
       </Panel>
@@ -426,114 +409,17 @@ defineExpose({
 </template>
 
 <style>
-/* Import Vue Flow base styles */
 @import '@vue-flow/core/dist/style.css';
 @import '@vue-flow/core/dist/theme-default.css';
-@import '@vue-flow/controls/dist/style.css';
 </style>
 
 <style scoped>
-.schema-graph-container {
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(to bottom, #f9fafb 0%, #ffffff 100%);
+:deep(.vue-flow__background) {
+  background-color: var(--color-background);
 }
 
-.schema-flow {
-  width: 100%;
-  height: 100%;
-}
-
-/* Custom Controls */
-.controls-panel {
-  background: transparent;
-  border: none;
+:deep(.vue-flow__node.selected) {
   box-shadow: none;
-}
-
-.graph-controls {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-2);
-}
-
-.control-btn {
-  width: 44px;
-  height: 44px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: white;
-  border: 1px solid var(--color-gray-200);
-  border-radius: var(--radius-lg);
-  cursor: pointer;
-  transition: all var(--transition-base);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-.control-btn:hover {
-  background: var(--color-gray-50);
-  border-color: var(--color-primary-500);
-  color: var(--color-primary-500);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  transform: translateY(-1px);
-}
-
-.control-btn:active {
-  transform: translateY(0);
-}
-
-.divider {
-  width: 100%;
-  height: 1px;
-  background: var(--color-gray-200);
-  margin: var(--spacing-1) 0;
-}
-
-/* Legend */
-.legend-panel {
-  background: transparent;
-  border: none;
-  box-shadow: none;
-}
-
-.graph-legend {
-  background: white;
-  padding: var(--spacing-4);
-  border-radius: var(--radius-lg);
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
-  border: 1px solid var(--color-gray-200);
-}
-
-.legend-title {
-  font-weight: 700;
-  font-size: var(--text-sm);
-  margin-bottom: var(--spacing-3);
-  color: var(--color-gray-900);
-}
-
-.legend-item {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-2);
-  margin-bottom: var(--spacing-2);
-  font-size: var(--text-xs);
-  color: var(--color-gray-600);
-}
-
-.legend-item:last-child {
-  margin-bottom: 0;
-}
-
-.legend-line {
-  width: 32px;
-  height: 3px;
-  border-radius: 2px;
-}
-
-/* Override Vue Flow default styles for light theme */
-:deep(.vue-flow__node) {
-  border-radius: 8px;
 }
 
 :deep(.vue-flow__edge-path) {
@@ -549,46 +435,19 @@ defineExpose({
   font-size: 11px;
 }
 
-:deep(.vue-flow__controls) {
-  display: none; /* Hide default controls, we use custom ones */
-}
-
-/* Light theme background */
-:deep(.vue-flow__background) {
-  background-color: #fafbfc;
-}
-
-/* Disable selection styling - no blue outline */
-:deep(.vue-flow__node.selected) {
-  box-shadow: none;
-}
-
-:deep(.vue-flow__node.selected .database-table-node) {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-/* Edge labels with better visibility */
 :deep(.vue-flow__edge-textbg) {
-  fill: white;
+  fill: var(--color-surface);
   fill-opacity: 0.95;
   rx: 4px;
 }
 
-:deep(.vue-flow__edge-text) {
-  fill: var(--color-gray-700);
-  font-weight: 600;
-}
-
-/* Prevent handle connection UI from showing */
-:deep(.vue-flow__handle-connecting) {
-  display: none;
-}
-
-:deep(.vue-flow__handle-valid) {
-  display: none;
-}
-
+:deep(.vue-flow__handle-connecting),
+:deep(.vue-flow__handle-valid),
 :deep(.vue-flow__connectionline) {
+  display: none;
+}
+
+:deep(.vue-flow__controls) {
   display: none;
 }
 </style>
