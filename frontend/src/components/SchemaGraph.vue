@@ -29,7 +29,7 @@ const nodeTypes = {
   databaseTable: DatabaseTableNode
 }
 
-const { fitView, zoomIn, zoomOut } = useVueFlow()
+const { fitView, zoomIn, zoomOut, getViewport } = useVueFlow()
 
 function extractNamespace(fqcn) {
   const parts = fqcn.split('\\')
@@ -59,6 +59,12 @@ function getRelationTypeLabel(type) {
 const nodesWithLayout = ref([])
 const currentEntitiesKey = ref('')
 const isCalculating = ref(false)
+const performanceMode = ref(false)
+const detailLevel = ref('full')
+
+const shouldShowLabels = computed(() => {
+  return detailLevel.value === 'full'
+})
 
 const nodes = computed(() => {
   const entitiesKey = props.entities.map(e => e.fqcn || e.name).sort().join(',')
@@ -83,12 +89,14 @@ const nodes = computed(() => {
 })
 
 const edges = computed(() => {
+  const showLabels = shouldShowLabels.value
+
   return props.relations.map((relation, index) => {
     const sourceId = relation.from.fqcn || relation.from.name
     const targetId = relation.to.fqcn || relation.to.name
     const edgeColor = getEdgeColor(relation.type)
 
-    return {
+    const edge = {
       id: `edge-${index}-${sourceId}-${targetId}`,
       source: sourceId,
       target: targetId,
@@ -107,18 +115,6 @@ const edges = computed(() => {
         width: 20,
         height: 20,
       },
-      label: relation.field,
-      labelStyle: {
-        fill: edgeColor,
-        fontWeight: 600,
-        fontSize: 11,
-      },
-      labelBgStyle: {
-        fill: '#141414',
-        fillOpacity: 0.95,
-      },
-      labelBgPadding: [4, 6],
-      labelBgBorderRadius: 4,
       data: {
         type: relation.type,
         typeLabel: getRelationTypeLabel(relation.type),
@@ -126,6 +122,23 @@ const edges = computed(() => {
         isOwning: relation.isOwning,
       },
     }
+
+    if (showLabels && props.entities.length < 100) {
+      edge.label = relation.field
+      edge.labelStyle = {
+        fill: edgeColor,
+        fontWeight: 600,
+        fontSize: 11,
+      }
+      edge.labelBgStyle = {
+        fill: '#141414',
+        fillOpacity: 0.95,
+      }
+      edge.labelBgPadding = [4, 6]
+      edge.labelBgBorderRadius = 4
+    }
+
+    return edge
   })
 })
 
@@ -134,6 +147,16 @@ async function calculateLayout() {
     nodesWithLayout.value = []
     currentEntitiesKey.value = ''
     return
+  }
+
+  const entityCount = props.entities.length
+
+  if (entityCount > 100) {
+    performanceMode.value = true
+    detailLevel.value = 'medium'
+  } else {
+    performanceMode.value = false
+    detailLevel.value = 'full'
   }
 
   isCalculating.value = true
@@ -150,15 +173,22 @@ async function calculateLayout() {
     targets: [relation.to.fqcn || relation.to.name],
   }))
 
+  const layoutOptions = {
+    'elk.algorithm': 'layered',
+    'elk.direction': 'DOWN',
+    'elk.spacing.nodeNode': entityCount > 100 ? '60' : '80',
+    'elk.layered.spacing.nodeNodeBetweenLayers': entityCount > 100 ? '100' : '120',
+    'elk.layered.nodePlacement.strategy': 'SIMPLE',
+  }
+
+  if (entityCount > 200) {
+    layoutOptions['elk.layered.considerModelOrder.strategy'] = 'NONE'
+    layoutOptions['elk.layered.compaction.postCompaction.strategy'] = 'EDGE_LENGTH'
+  }
+
   const graph = {
     id: 'root',
-    layoutOptions: {
-      'elk.algorithm': 'layered',
-      'elk.direction': 'DOWN',
-      'elk.spacing.nodeNode': '80',
-      'elk.layered.spacing.nodeNodeBetweenLayers': '120',
-      'elk.layered.nodePlacement.strategy': 'SIMPLE',
-    },
+    layoutOptions,
     children: elkNodes,
     edges: elkEdges,
   }
@@ -190,6 +220,12 @@ async function calculateLayout() {
         height: 80 + Math.min((entity.fields || []).length, 8) * 22,
       }
     })
+
+    if (props.entities.length > 50) {
+      setTimeout(() => {
+        fitView({ padding: 0.1, duration: 400 })
+      }, 100)
+    }
 
   } catch (error) {
     console.error('ELK layout error:', error)
@@ -332,7 +368,17 @@ defineExpose({
 </script>
 
 <template>
-  <div class="w-full h-full bg-[var(--color-background)]">
+  <div class="w-full h-full bg-[var(--color-background)] relative">
+    <div v-if="isCalculating" class="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 px-4 py-2 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg shadow-lg flex items-center gap-2">
+      <Icon name="arrow-path" :size="16" class="text-[var(--color-primary)] animate-spin" />
+      <span class="text-sm text-[var(--color-text-primary)] font-medium">Calculating layout for {{ entities.length }} entities...</span>
+    </div>
+
+    <div v-if="performanceMode && !isCalculating" class="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 px-3 py-1.5 bg-[var(--color-warning-light)] border border-[var(--color-warning)]/30 rounded-md flex items-center gap-2">
+      <Icon name="bolt" :size="14" class="text-[var(--color-warning)]" />
+      <span class="text-xs text-[var(--color-text-primary)] font-medium">Performance mode ({{ entities.length }} entities)</span>
+    </div>
+
     <VueFlow
       :nodes="nodes"
       :edges="edges"
