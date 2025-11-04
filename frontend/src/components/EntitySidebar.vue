@@ -8,6 +8,7 @@ const schemaStore = useSchemaStore()
 const searchQuery = ref('')
 const collapsedNamespaces = ref(new Set())
 const showOnlyWithRelations = ref(false)
+const showQuickActions = ref(false)
 
 const filteredNamespaces = computed(() => {
   const query = searchQuery.value.toLowerCase().trim()
@@ -88,6 +89,53 @@ function selectAllVisible() {
   schemaStore.setSelectedEntities(allFqcns)
 }
 
+function selectNamespace(namespace) {
+  const fqcns = namespace.entities.map(e => e.fqcn || e.name)
+  const currentSelection = new Set(schemaStore.selectedEntities)
+
+  fqcns.forEach(fqcn => currentSelection.add(fqcn))
+
+  schemaStore.setSelectedEntities(Array.from(currentSelection))
+}
+
+function selectOnlyNamespace(namespace) {
+  const fqcns = namespace.entities.map(e => e.fqcn || e.name)
+  schemaStore.setSelectedEntities(fqcns)
+}
+
+function selectWithRelations() {
+  const entitiesWithRels = schemaStore.entities
+    .filter(e => e.relations && e.relations.length > 0)
+    .map(e => e.fqcn || e.name)
+
+  schemaStore.setSelectedEntities(entitiesWithRels)
+}
+
+function selectCoreEntities() {
+  const sorted = [...schemaStore.entities]
+    .sort((a, b) => (b.relations?.length || 0) - (a.relations?.length || 0))
+    .slice(0, Math.min(20, schemaStore.entities.length))
+
+  const fqcns = sorted.map(e => e.fqcn || e.name)
+  schemaStore.setSelectedEntities(fqcns)
+}
+
+function selectByPrefix() {
+  const prefix = prompt('Enter table name prefix (e.g., "User", "Product"):')
+  if (!prefix) return
+
+  const matching = schemaStore.entities
+    .filter(e => e.name.toLowerCase().startsWith(prefix.toLowerCase()))
+    .map(e => e.fqcn || e.name)
+
+  if (matching.length === 0) {
+    alert(`No entities found with prefix "${prefix}"`)
+    return
+  }
+
+  schemaStore.setSelectedEntities(matching)
+}
+
 function expandAll() {
   collapsedNamespaces.value = new Set()
 }
@@ -110,9 +158,18 @@ watch(searchQuery, (newQuery) => {
       <div class="flex items-center gap-2">
         <Icon name="table-cells" :size="20" class="text-[var(--color-primary)]" />
         <h2 class="m-0 text-base font-bold text-[var(--color-text-primary)]">Entities</h2>
+        <span class="text-xs text-[var(--color-text-tertiary)] ml-1">({{ schemaStore.totalEntities }})</span>
       </div>
 
       <div class="flex gap-2">
+        <button
+          @click="showQuickActions = !showQuickActions"
+          class="flex items-center justify-center w-8 h-8 bg-[var(--color-primary-light)] border border-[var(--color-primary)]/30 rounded-md cursor-pointer transition-all duration-200 hover:bg-[var(--color-primary)]/20"
+          :class="{ 'bg-[var(--color-primary)] text-white': showQuickActions }"
+          title="Quick selection tools"
+        >
+          <Icon name="bolt" :size="16" />
+        </button>
         <button
           v-if="schemaStore.selectedEntities.size > 0"
           @click="clearSelection"
@@ -120,6 +177,36 @@ watch(searchQuery, (newQuery) => {
           title="Clear selection"
         >
           <Icon name="x-mark" :size="16" class="text-[#ef4444]" />
+        </button>
+      </div>
+    </div>
+
+    <div v-if="showQuickActions" class="px-3 py-3 bg-[var(--color-primary-light)] border-b border-[var(--color-primary)]/20">
+      <div class="text-xs font-semibold text-[var(--color-text-primary)] mb-2">Quick Selection</div>
+      <div class="grid grid-cols-2 gap-2">
+        <button @click="selectAllVisible" class="px-2 py-1.5 bg-[var(--color-surface)] border border-[var(--color-border)] rounded text-xs font-medium text-[var(--color-text-primary)] cursor-pointer transition-all duration-200 hover:bg-[var(--color-surface-hover)] hover:border-[var(--color-primary)]/30">
+          <div class="flex items-center gap-1">
+            <Icon name="squares-2x2" :size="12" />
+            <span>All visible</span>
+          </div>
+        </button>
+        <button @click="selectWithRelations" class="px-2 py-1.5 bg-[var(--color-surface)] border border-[var(--color-border)] rounded text-xs font-medium text-[var(--color-text-primary)] cursor-pointer transition-all duration-200 hover:bg-[var(--color-surface-hover)] hover:border-[var(--color-primary)]/30">
+          <div class="flex items-center gap-1">
+            <Icon name="link" :size="12" />
+            <span>With relations</span>
+          </div>
+        </button>
+        <button @click="selectCoreEntities" class="px-2 py-1.5 bg-[var(--color-surface)] border border-[var(--color-border)] rounded text-xs font-medium text-[var(--color-text-primary)] cursor-pointer transition-all duration-200 hover:bg-[var(--color-surface-hover)] hover:border-[var(--color-primary)]/30">
+          <div class="flex items-center gap-1">
+            <Icon name="star" :size="12" />
+            <span>Top 20 core</span>
+          </div>
+        </button>
+        <button @click="selectByPrefix" class="px-2 py-1.5 bg-[var(--color-surface)] border border-[var(--color-border)] rounded text-xs font-medium text-[var(--color-text-primary)] cursor-pointer transition-all duration-200 hover:bg-[var(--color-surface-hover)] hover:border-[var(--color-primary)]/30">
+          <div class="flex items-center gap-1">
+            <Icon name="funnel" :size="12" />
+            <span>By prefix...</span>
+          </div>
         </button>
       </div>
     </div>
@@ -174,21 +261,39 @@ watch(searchQuery, (newQuery) => {
           :key="namespace.name"
           class="mb-2"
         >
-          <div
-            @click="toggleNamespace(namespace.name)"
-            class="flex items-center gap-2 px-2 py-2 bg-[var(--color-surface-raised)] border border-[var(--color-border)] rounded-md cursor-pointer transition-all duration-200 select-none hover:bg-[var(--color-surface-hover)] hover:border-[var(--color-primary)]/30"
-          >
-            <Icon
-              :name="isCollapsed(namespace.name) ? 'chevron-right' : 'chevron-down'"
-              :size="16"
-              class="text-[var(--color-text-tertiary)] transition-transform duration-200"
-            />
-            <Icon name="folder" :size="16" class="text-[var(--color-primary)]" />
-            <span class="flex-1 text-sm font-semibold text-[var(--color-text-primary)] whitespace-nowrap overflow-hidden text-ellipsis">{{ namespace.name }}</span>
-            <span class="flex items-center justify-center min-w-[24px] h-5 px-1.5 bg-[var(--color-primary-light)] text-[var(--color-primary)] text-xs font-bold rounded-full">{{ namespace.entities.length }}</span>
+          <div class="flex items-center gap-1 mb-1">
+            <div
+              @click="toggleNamespace(namespace.name)"
+              class="flex-1 flex items-center gap-2 px-2 py-2 bg-[var(--color-surface-raised)] border border-[var(--color-border)] rounded-md cursor-pointer transition-all duration-200 select-none hover:bg-[var(--color-surface-hover)] hover:border-[var(--color-primary)]/30"
+            >
+              <Icon
+                :name="isCollapsed(namespace.name) ? 'chevron-right' : 'chevron-down'"
+                :size="16"
+                class="text-[var(--color-text-tertiary)] transition-transform duration-200"
+              />
+              <Icon name="folder" :size="16" class="text-[var(--color-primary)]" />
+              <span class="flex-1 text-sm font-semibold text-[var(--color-text-primary)] whitespace-nowrap overflow-hidden text-ellipsis">{{ namespace.name }}</span>
+              <span class="flex items-center justify-center min-w-[24px] h-5 px-1.5 bg-[var(--color-primary-light)] text-[var(--color-primary)] text-xs font-bold rounded-full">{{ namespace.entities.length }}</span>
+            </div>
+
+            <button
+              @click="selectNamespace(namespace)"
+              class="flex items-center justify-center w-8 h-8 bg-[var(--color-surface-raised)] border border-[var(--color-border)] rounded-md cursor-pointer transition-all duration-200 hover:bg-[var(--color-primary-light)] hover:border-[var(--color-primary)]/30"
+              title="Add namespace to selection"
+            >
+              <Icon name="plus" :size="14" class="text-[var(--color-text-secondary)]" />
+            </button>
+
+            <button
+              @click="selectOnlyNamespace(namespace)"
+              class="flex items-center justify-center w-8 h-8 bg-[var(--color-surface-raised)] border border-[var(--color-border)] rounded-md cursor-pointer transition-all duration-200 hover:bg-[var(--color-primary)] hover:text-white"
+              title="Select only this namespace"
+            >
+              <Icon name="check" :size="14" class="text-[var(--color-text-secondary)]" />
+            </button>
           </div>
 
-          <div v-if="!isCollapsed(namespace.name)" class="mt-1 pl-6">
+          <div v-if="!isCollapsed(namespace.name)" class="pl-6">
             <div
               v-for="entity in namespace.entities"
               :key="entity.fqcn || entity.name"
@@ -222,7 +327,7 @@ watch(searchQuery, (newQuery) => {
       <div class="flex flex-col gap-1">
         <div class="flex items-center gap-1.5 text-xs text-[var(--color-text-secondary)]">
           <Icon name="table-cells" :size="14" />
-          <span>{{ totalVisibleEntities }} / {{ schemaStore.totalEntities }}</span>
+          <span>{{ totalVisibleEntities }} visible</span>
         </div>
         <div v-if="schemaStore.selectedEntities.size > 0" class="flex items-center gap-1.5 text-xs text-[var(--color-primary)] font-semibold">
           <Icon name="check-circle" :size="14" />
