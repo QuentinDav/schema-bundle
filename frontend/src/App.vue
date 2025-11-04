@@ -18,26 +18,31 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="app-container">
+  <div class="flex flex-col h-screen overflow-hidden bg-[var(--color-background)]">
     <AppHeader />
 
-    <div class="app-main">
+    <div class="flex flex-1 overflow-hidden">
       <AppSidebar />
 
-      <main class="app-content">
-        <div v-if="schemaStore.loading" class="loading-state">
-          <div class="spinner"></div>
-          <p>Loading schema...</p>
+      <main class="flex-1 overflow-hidden relative">
+        <div v-if="schemaStore.loading" class="absolute inset-0 flex flex-col items-center justify-center gap-4">
+          <div class="w-12 h-12 border-4 border-[var(--color-border)] border-t-[var(--color-primary)] rounded-full animate-spin"></div>
+          <p class="text-sm text-[var(--color-text-secondary)]">Loading schema...</p>
         </div>
 
-        <div v-else-if="schemaStore.error" class="error-state">
-          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+        <div v-else-if="schemaStore.error" class="absolute inset-0 flex flex-col items-center justify-center gap-4">
+          <svg class="w-16 h-16 text-[var(--color-danger)]" viewBox="0 0 24 24" fill="none" stroke="currentColor">
             <circle cx="12" cy="12" r="10" stroke-width="2" />
             <path d="M12 8v4m0 4h.01" stroke-width="2" stroke-linecap="round" />
           </svg>
-          <h3>Error loading schema</h3>
-          <p>{{ schemaStore.error }}</p>
-          <button @click="schemaStore.fetchSchema()" class="retry-btn">Try Again</button>
+          <h3 class="text-xl font-semibold text-[var(--color-text-primary)]">Error loading schema</h3>
+          <p class="text-sm text-[var(--color-text-secondary)]">{{ schemaStore.error }}</p>
+          <button
+            @click="schemaStore.fetchSchema()"
+            class="mt-2 px-6 py-3 bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white font-semibold rounded-lg transition-all duration-200 hover:-translate-y-0.5"
+          >
+            Try Again
+          </button>
         </div>
 
         <RouterView v-else />
@@ -48,103 +53,3 @@ onMounted(() => {
     <ToastContainer />
   </div>
 </template>
-
-<style scoped>
-.app-container {
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-  overflow: hidden;
-}
-
-.app-main {
-  display: flex;
-  flex: 1;
-  overflow: hidden;
-}
-
-.app-content {
-  flex: 1;
-  overflow: hidden;
-  position: relative;
-}
-
-.loading-state,
-.error-state {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  text-align: center;
-  color: #9ca3af;
-}
-
-.loading-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1rem;
-}
-
-.spinner {
-  width: 48px;
-  height: 48px;
-  border: 4px solid #e5e7eb;
-  border-top-color: #667eea;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.loading-state p {
-  font-size: 1rem;
-  color: #6b7280;
-  margin: 0;
-}
-
-.error-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1rem;
-}
-
-.error-state svg {
-  color: #ef4444;
-}
-
-.error-state h3 {
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: #6b7280;
-  margin: 0;
-}
-
-.error-state p {
-  font-size: 0.875rem;
-  color: #9ca3af;
-  margin: 0;
-}
-
-.retry-btn {
-  margin-top: 0.5rem;
-  padding: 0.75rem 1.5rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.retry-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-}
-</style>
