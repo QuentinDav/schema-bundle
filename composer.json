@@ -31,20 +31,20 @@
     "markdown-export",
     "semantic-versioning"
   ],
-  "homepage": "https://github.com/quentindavid/qd-schema-bundle",
-  "readme": "readme.md",
+  "homepage": "https://github.com/QuentinDav/schema-bundle",
+  "readme": "README.md",
   "authors": [
     {
       "name": "Quentin David",
-      "email": "contact@quentindavid.com",
-      "homepage": "https://github.com/quentindavid",
+      "email": "quentin.dav33@gmail.com",
+      "homepage": "https://github.com/QuentinDav",
       "role": "Developer"
     }
   ],
   "support": {
-    "issues": "https://github.com/quentindavid/qd-schema-bundle/issues",
-    "source": "https://github.com/quentindavid/qd-schema-bundle",
-    "docs": "https://github.com/quentindavid/qd-schema-bundle#readme"
+    "issues": "https://github.com/QuentinDav/schema-bundle/issues",
+    "source": "https://github.com/QuentinDav/schema-bundle",
+    "docs": "https://github.com/QuentinDav/schema-bundle#readme"
   },
   "autoload": {
     "psr-4": {
