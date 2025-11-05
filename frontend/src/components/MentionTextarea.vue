@@ -155,7 +155,7 @@ function clickSuggestion(suggestion) {
 </script>
 
 <template>
-  <div class="mention-textarea-wrapper">
+  <div class="relative">
     <textarea
       ref="textareaRef"
       :value="modelValue"
@@ -163,32 +163,34 @@ function clickSuggestion(suggestion) {
       @keydown="handleKeyDown"
       :placeholder="placeholder"
       :disabled="disabled"
-      class="mention-textarea"
+      class="w-full px-3 py-3 border border-[var(--color-border)] rounded-lg font-sans text-sm resize-vertical min-h-[80px] transition-all duration-200 bg-[var(--color-background)] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] focus:outline-none focus:border-[var(--color-primary)] focus:shadow-lg focus:shadow-[var(--color-primary)]/10 disabled:bg-[var(--color-surface-hover)] disabled:cursor-not-allowed"
       rows="3"
     />
 
     <div
       v-if="showSuggestions && suggestions.length > 0"
-      class="suggestions-dropdown"
+      class="absolute z-[1000] bg-[var(--color-surface-raised)] border border-[var(--color-border)] rounded-lg shadow-2xl max-h-[250px] overflow-y-auto min-w-[250px]"
       :style="{ bottom: suggestionPosition.bottom + 'px', left: suggestionPosition.left + 'px' }"
     >
       <div
         v-for="(suggestion, index) in suggestions"
         :key="suggestion.type === 'user' ? suggestion.data.id : suggestion.data.name"
         @click="clickSuggestion(suggestion)"
-        class="suggestion-item"
-        :class="{ selected: index === selectedSuggestionIndex }"
+        class="px-3 py-3 cursor-pointer transition-all duration-150 border-b border-[var(--color-border)] last:border-b-0"
+        :class="{ 'bg-[var(--color-primary-light)]': index === selectedSuggestionIndex, 'hover:bg-[var(--color-surface-hover)]': index !== selectedSuggestionIndex }"
       >
-        <div v-if="suggestion.type === 'user'" class="user-suggestion">
-          <div class="user-avatar">{{ suggestion.data.name.charAt(0).toUpperCase() }}</div>
-          <div class="user-info">
-            <span class="user-name">{{ suggestion.data.name }}</span>
-            <span class="user-username">@{{ suggestion.data.username }}</span>
+        <div v-if="suggestion.type === 'user'" class="flex items-center gap-3">
+          <div class="w-8 h-8 rounded-full bg-gradient-to-br from-[var(--color-primary)] to-[var(--color-primary-hover)] text-white flex items-center justify-center font-bold text-xs flex-shrink-0">
+            {{ suggestion.data.name.charAt(0).toUpperCase() }}
+          </div>
+          <div class="flex flex-col">
+            <span class="text-sm font-semibold text-[var(--color-text-primary)]">{{ suggestion.data.name }}</span>
+            <span class="text-xs text-[var(--color-text-secondary)]">@{{ suggestion.data.username }}</span>
           </div>
         </div>
 
-        <div v-else class="field-suggestion">
-          <div class="field-icon">
+        <div v-else class="flex items-center gap-3">
+          <div class="w-8 h-8 flex items-center justify-center bg-[var(--color-surface)] rounded-md text-[var(--color-primary)] flex-shrink-0">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
               <circle cx="12" cy="12" r="2" />
               <path
@@ -199,140 +201,12 @@ function clickSuggestion(suggestion) {
               />
             </svg>
           </div>
-          <div class="field-info">
-            <span class="field-name">{{ suggestion.data.name }}</span>
-            <span class="field-type">{{ suggestion.data.type }}</span>
+          <div class="flex flex-col">
+            <span class="text-sm font-semibold text-[var(--color-text-primary)]">{{ suggestion.data.name }}</span>
+            <span class="text-xs text-[var(--color-text-secondary)] font-mono">{{ suggestion.data.type }}</span>
           </div>
         </div>
       </div>
     </div>
   </div>
 </template>
-
-<style scoped>
-.mention-textarea-wrapper {
-  position: relative;
-}
-
-.mention-textarea {
-  width: 100%;
-  padding: 0.75rem;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
-  font-family: inherit;
-  font-size: 0.875rem;
-  resize: vertical;
-  min-height: 80px;
-  transition: border-color 0.2s ease;
-}
-
-.mention-textarea:focus {
-  outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-}
-
-.mention-textarea:disabled {
-  background: #f3f4f6;
-  cursor: not-allowed;
-}
-
-.suggestions-dropdown {
-  position: absolute;
-  z-index: 1000;
-  background: white;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  max-height: 250px;
-  overflow-y: auto;
-  min-width: 250px;
-}
-
-.suggestion-item {
-  padding: 0.75rem;
-  cursor: pointer;
-  transition: background 0.15s ease;
-  border-bottom: 1px solid #f3f4f6;
-}
-
-.suggestion-item:last-child {
-  border-bottom: none;
-}
-
-.suggestion-item:hover,
-.suggestion-item.selected {
-  background: #f3f4f6;
-}
-
-.user-suggestion {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.user-avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  font-size: 0.75rem;
-  flex-shrink: 0;
-}
-
-.user-info {
-  display: flex;
-  flex-direction: column;
-}
-
-.user-name {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: #111827;
-}
-
-.user-username {
-  font-size: 0.75rem;
-  color: #9ca3af;
-}
-
-.field-suggestion {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.field-icon {
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #f3f4f6;
-  border-radius: 6px;
-  color: #667eea;
-  flex-shrink: 0;
-}
-
-.field-info {
-  display: flex;
-  flex-direction: column;
-}
-
-.field-name {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: #111827;
-}
-
-.field-type {
-  font-size: 0.75rem;
-  color: #9ca3af;
-  font-family: 'Courier New', monospace;
-}
-</style>

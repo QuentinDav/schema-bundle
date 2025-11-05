@@ -29,7 +29,6 @@ const filteredSourceEntities = computed(() => {
       (e.table?.toLowerCase().includes(query)) ||
       (e.fqcn || e.name).toLowerCase().includes(query)
     )
-    .slice(0, 8)
 })
 
 const filteredTargetEntities = computed(() => {
@@ -42,7 +41,6 @@ const filteredTargetEntities = computed(() => {
       (e.table?.toLowerCase().includes(query)) ||
       (e.fqcn || e.name).toLowerCase().includes(query)
     )
-    .slice(0, 8)
 })
 
 const sourceEntity = computed(() => {
@@ -176,9 +174,9 @@ onUnmounted(() => {
     <div class="px-4 py-4 bg-[var(--color-surface-raised)] border-b border-[var(--color-border)]">
       <h3 class="m-0 mb-3 text-sm font-bold text-[var(--color-text-primary)]">Select Entities</h3>
 
-      <div class="autocomplete-container mb-3">
+      <div class="autocomplete-container mb-3 relative">
         <label class="block text-sm font-semibold text-[var(--color-text-primary)] mb-1.5">From</label>
-        <div class="relative flex items-center bg-[var(--color-background)] border border-[var(--color-border)] rounded-md px-2 py-2 transition-all duration-200 focus-within:border-[var(--color-primary)] focus-within:bg-[var(--color-surface)]">
+        <div class="flex items-center bg-[var(--color-background)] border border-[var(--color-border)] rounded-md px-2 py-2 transition-all duration-200 focus-within:border-[var(--color-primary)] focus-within:bg-[var(--color-surface)]">
           <Icon name="arrow-up-circle" :size="16" class="text-[var(--color-text-tertiary)] mr-2 flex-shrink-0" />
           <input
             v-model="searchSource"
@@ -213,9 +211,9 @@ onUnmounted(() => {
         </div>
       </div>
 
-      <div class="autocomplete-container mb-3">
+      <div class="autocomplete-container mb-3 relative">
         <label class="block text-sm font-semibold text-[var(--color-text-primary)] mb-1.5">To</label>
-        <div class="relative flex items-center bg-[var(--color-background)] border border-[var(--color-border)] rounded-md px-2 py-2 transition-all duration-200 focus-within:border-[var(--color-primary)] focus-within:bg-[var(--color-surface)]">
+        <div class="flex items-center bg-[var(--color-background)] border border-[var(--color-border)] rounded-md px-2 py-2 transition-all duration-200 focus-within:border-[var(--color-primary)] focus-within:bg-[var(--color-surface)]">
           <Icon name="arrow-down-circle" :size="16" class="text-[var(--color-text-tertiary)] mr-2 flex-shrink-0" />
           <input
             v-model="searchTarget"
