@@ -96,84 +96,84 @@ function getRelationChangedProperties(from, to) {
 </script>
 
 <template>
-  <div class="entity-diff">
-    <div class="diff-header" @click="toggleExpand">
-      <div class="diff-header-left">
+  <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl overflow-hidden transition-all duration-200 hover:border-[var(--color-primary)]/30 hover:shadow-md">
+    <div class="flex items-center justify-between px-4 py-4 cursor-pointer select-none transition-colors duration-200 hover:bg-[var(--color-surface-hover)]" @click="toggleExpand">
+      <div class="flex items-center gap-2">
         <Icon
           :name="isExpanded ? 'chevron-down' : 'chevron-right'"
           :size="20"
-          class="expand-icon"
+          class="text-[var(--color-text-tertiary)] transition-transform duration-200"
         />
-        <h4>{{ entityName }}</h4>
+        <h4 class="m-0 text-base font-bold text-[var(--color-text-primary)]">{{ entityName }}</h4>
       </div>
 
-      <div class="diff-summary">
-        <span v-if="diff.fields_added?.length" class="diff-badge added">
+      <div class="flex flex-wrap gap-2">
+        <span v-if="diff.fields_added?.length" class="px-2 py-1 rounded-lg text-xs font-semibold bg-[#ecfdf5] text-[#047857] border border-[#34d399]/30">
           +{{ diff.fields_added.length }} field{{ diff.fields_added.length > 1 ? 's' : '' }}
         </span>
-        <span v-if="diff.fields_removed?.length" class="diff-badge removed">
+        <span v-if="diff.fields_removed?.length" class="px-2 py-1 rounded-lg text-xs font-semibold bg-[#fef2f2] text-[#dc2626] border border-[#fca5a5]/30">
           -{{ diff.fields_removed.length }} field{{ diff.fields_removed.length > 1 ? 's' : '' }}
         </span>
-        <span v-if="diff.fields_changed?.length" class="diff-badge modified">
+        <span v-if="diff.fields_changed?.length" class="px-2 py-1 rounded-lg text-xs font-semibold bg-[#fffbeb] text-[#d97706] border border-[#fbbf24]/30">
           ~{{ diff.fields_changed.length }} field{{ diff.fields_changed.length > 1 ? 's' : '' }}
         </span>
-        <span v-if="diff.rels_added?.length" class="diff-badge added">
+        <span v-if="diff.rels_added?.length" class="px-2 py-1 rounded-lg text-xs font-semibold bg-[#ecfdf5] text-[#047857] border border-[#34d399]/30">
           +{{ diff.rels_added.length }} rel{{ diff.rels_added.length > 1 ? 's' : '' }}
         </span>
-        <span v-if="diff.rels_removed?.length" class="diff-badge removed">
+        <span v-if="diff.rels_removed?.length" class="px-2 py-1 rounded-lg text-xs font-semibold bg-[#fef2f2] text-[#dc2626] border border-[#fca5a5]/30">
           -{{ diff.rels_removed.length }} rel{{ diff.rels_removed.length > 1 ? 's' : '' }}
         </span>
-        <span v-if="diff.rels_changed?.length" class="diff-badge modified">
+        <span v-if="diff.rels_changed?.length" class="px-2 py-1 rounded-lg text-xs font-semibold bg-[#fffbeb] text-[#d97706] border border-[#fbbf24]/30">
           ~{{ diff.rels_changed.length }} rel{{ diff.rels_changed.length > 1 ? 's' : '' }}
         </span>
       </div>
     </div>
 
-    <div v-if="isExpanded" class="diff-details">
-      <div v-if="diff.fields_added?.length > 0" class="diff-section">
-        <h5 class="section-title added">
+    <div v-if="isExpanded" class="border-t border-[var(--color-border)] px-4 py-4 bg-[var(--color-surface-raised)]">
+      <div v-if="diff.fields_added?.length > 0" class="mb-4">
+        <h5 class="flex items-center gap-2 m-0 mb-3 text-sm font-bold uppercase tracking-wide text-[#047857]">
           <Icon name="plus" :size="16" />
           Added Fields
         </h5>
-        <div class="diff-items">
-          <div v-for="field in diff.fields_added" :key="field.name" class="diff-item added">
-            <div class="diff-line">
-              <span class="diff-marker">+</span>
-              <code class="field-name">{{ field.name }}</code>
-              <span class="field-spec">({{ getFieldSpec(field) }})</span>
+        <div class="flex flex-col gap-2">
+          <div v-for="field in diff.fields_added" :key="field.name" class="px-3 py-3 rounded-lg font-mono text-sm bg-[#f0fdf4] border-l-4 border-[#10b981]">
+            <div class="flex items-center gap-2">
+              <span class="font-bold text-base text-[#10b981] w-4 flex-shrink-0">+</span>
+              <code class="font-bold text-[var(--color-text-primary)] bg-black/5 px-1.5 py-0.5 rounded">{{ field.name }}</code>
+              <span class="text-xs text-[var(--color-text-secondary)]">({{ getFieldSpec(field) }})</span>
             </div>
           </div>
         </div>
       </div>
 
-      <div v-if="diff.fields_removed?.length > 0" class="diff-section">
-        <h5 class="section-title removed">
+      <div v-if="diff.fields_removed?.length > 0" class="mb-4">
+        <h5 class="flex items-center gap-2 m-0 mb-3 text-sm font-bold uppercase tracking-wide text-[#dc2626]">
           <Icon name="minus" :size="16" />
           Removed Fields
         </h5>
-        <div class="diff-items">
-          <div v-for="field in diff.fields_removed" :key="field.name" class="diff-item removed">
-            <div class="diff-line">
-              <span class="diff-marker">-</span>
-              <code class="field-name">{{ field.name }}</code>
+        <div class="flex flex-col gap-2">
+          <div v-for="field in diff.fields_removed" :key="field.name" class="px-3 py-3 rounded-lg font-mono text-sm bg-[#fef2f2] border-l-4 border-[#ef4444]">
+            <div class="flex items-center gap-2">
+              <span class="font-bold text-base text-[#ef4444] w-4 flex-shrink-0">-</span>
+              <code class="font-bold text-[var(--color-text-primary)] bg-black/5 px-1.5 py-0.5 rounded">{{ field.name }}</code>
             </div>
           </div>
         </div>
       </div>
 
-      <div v-if="diff.fields_changed?.length > 0" class="diff-section">
-        <h5 class="section-title modified">
+      <div v-if="diff.fields_changed?.length > 0" class="mb-4">
+        <h5 class="flex items-center gap-2 m-0 mb-3 text-sm font-bold uppercase tracking-wide text-[#d97706]">
           <Icon name="arrow-path" :size="16" />
           Modified Fields
         </h5>
-        <div class="diff-items">
-          <div v-for="field in diff.fields_changed" :key="field.name" class="diff-item modified">
-            <div class="diff-line">
-              <span class="diff-marker">~</span>
-              <code class="field-name">{{ field.name }}</code>
+        <div class="flex flex-col gap-2">
+          <div v-for="field in diff.fields_changed" :key="field.name" class="px-3 py-3 rounded-lg font-mono text-sm bg-[#fffbeb] border-l-4 border-[#f59e0b]">
+            <div class="flex items-center gap-2">
+              <span class="font-bold text-base text-[#f59e0b] w-4 flex-shrink-0">~</span>
+              <code class="font-bold text-[var(--color-text-primary)] bg-black/5 px-1.5 py-0.5 rounded">{{ field.name }}</code>
             </div>
-            <div class="change-details">
-              <div v-for="change in getChangedProperties(field.from, field.to)" :key="change" class="change-item">
+            <div class="mt-2 ml-6 pl-3 border-l-2 border-black/10">
+              <div v-for="change in getChangedProperties(field.from, field.to)" :key="change" class="text-xs text-[var(--color-text-secondary)] py-0.5">
                 {{ change }}
               </div>
             </div>
@@ -181,52 +181,52 @@ function getRelationChangedProperties(from, to) {
         </div>
       </div>
 
-      <div v-if="diff.rels_added?.length > 0" class="diff-section">
-        <h5 class="section-title added">
+      <div v-if="diff.rels_added?.length > 0" class="mb-4">
+        <h5 class="flex items-center gap-2 m-0 mb-3 text-sm font-bold uppercase tracking-wide text-[#047857]">
           <Icon name="plus" :size="16" />
           Added Relations
         </h5>
-        <div class="diff-items">
-          <div v-for="rel in diff.rels_added" :key="rel.field" class="diff-item added">
-            <div class="diff-line">
-              <span class="diff-marker">+</span>
-              <code class="field-name">{{ rel.field }}</code>
-              <span class="relation-target">→ {{ rel.target }}</span>
-              <span class="field-spec">({{ getRelationSpec(rel) }})</span>
+        <div class="flex flex-col gap-2">
+          <div v-for="rel in diff.rels_added" :key="rel.field" class="px-3 py-3 rounded-lg font-mono text-sm bg-[#f0fdf4] border-l-4 border-[#10b981]">
+            <div class="flex items-center gap-2">
+              <span class="font-bold text-base text-[#10b981] w-4 flex-shrink-0">+</span>
+              <code class="font-bold text-[var(--color-text-primary)] bg-black/5 px-1.5 py-0.5 rounded">{{ rel.field }}</code>
+              <span class="text-[var(--color-primary)] font-semibold">→ {{ rel.target }}</span>
+              <span class="text-xs text-[var(--color-text-secondary)]">({{ getRelationSpec(rel) }})</span>
             </div>
           </div>
         </div>
       </div>
 
-      <div v-if="diff.rels_removed?.length > 0" class="diff-section">
-        <h5 class="section-title removed">
+      <div v-if="diff.rels_removed?.length > 0" class="mb-4">
+        <h5 class="flex items-center gap-2 m-0 mb-3 text-sm font-bold uppercase tracking-wide text-[#dc2626]">
           <Icon name="minus" :size="16" />
           Removed Relations
         </h5>
-        <div class="diff-items">
-          <div v-for="rel in diff.rels_removed" :key="rel.field" class="diff-item removed">
-            <div class="diff-line">
-              <span class="diff-marker">-</span>
-              <code class="field-name">{{ rel.field }}</code>
+        <div class="flex flex-col gap-2">
+          <div v-for="rel in diff.rels_removed" :key="rel.field" class="px-3 py-3 rounded-lg font-mono text-sm bg-[#fef2f2] border-l-4 border-[#ef4444]">
+            <div class="flex items-center gap-2">
+              <span class="font-bold text-base text-[#ef4444] w-4 flex-shrink-0">-</span>
+              <code class="font-bold text-[var(--color-text-primary)] bg-black/5 px-1.5 py-0.5 rounded">{{ rel.field }}</code>
             </div>
           </div>
         </div>
       </div>
 
-      <div v-if="diff.rels_changed?.length > 0" class="diff-section">
-        <h5 class="section-title modified">
+      <div v-if="diff.rels_changed?.length > 0" class="mb-4">
+        <h5 class="flex items-center gap-2 m-0 mb-3 text-sm font-bold uppercase tracking-wide text-[#d97706]">
           <Icon name="arrow-path" :size="16" />
           Modified Relations
         </h5>
-        <div class="diff-items">
-          <div v-for="rel in diff.rels_changed" :key="rel.field" class="diff-item modified">
-            <div class="diff-line">
-              <span class="diff-marker">~</span>
-              <code class="field-name">{{ rel.field }}</code>
-              <span class="relation-target">→ {{ rel.to?.target || rel.from?.target }}</span>
+        <div class="flex flex-col gap-2">
+          <div v-for="rel in diff.rels_changed" :key="rel.field" class="px-3 py-3 rounded-lg font-mono text-sm bg-[#fffbeb] border-l-4 border-[#f59e0b]">
+            <div class="flex items-center gap-2">
+              <span class="font-bold text-base text-[#f59e0b] w-4 flex-shrink-0">~</span>
+              <code class="font-bold text-[var(--color-text-primary)] bg-black/5 px-1.5 py-0.5 rounded">{{ rel.field }}</code>
+              <span class="text-[var(--color-primary)] font-semibold">→ {{ rel.to?.target || rel.from?.target }}</span>
             </div>
-            <div class="change-details">
-              <div v-for="change in getRelationChangedProperties(rel.from, rel.to)" :key="change" class="change-item">
+            <div class="mt-2 ml-6 pl-3 border-l-2 border-black/10">
+              <div v-for="change in getRelationChangedProperties(rel.from, rel.to)" :key="change" class="text-xs text-[var(--color-text-secondary)] py-0.5">
                 {{ change }}
               </div>
             </div>
@@ -234,225 +234,10 @@ function getRelationChangedProperties(from, to) {
         </div>
       </div>
 
-      <div v-if="!hasChanges()" class="no-changes">
+      <div v-if="!hasChanges()" class="flex flex-col items-center justify-center px-6 py-6 text-[var(--color-text-tertiary)] text-center">
         <Icon name="check" :size="24" />
-        <p>No changes detected</p>
+        <p class="m-0 mt-2 text-sm">No changes detected</p>
       </div>
     </div>
   </div>
 </template>
-
-<style scoped>
-.entity-diff {
-  background: white;
-  border: 1px solid var(--color-gray-200);
-  border-radius: var(--radius-lg);
-  overflow: hidden;
-  transition: all var(--transition-base);
-}
-
-.entity-diff:hover {
-  border-color: var(--color-primary-300);
-  box-shadow: var(--shadow-sm);
-}
-
-.diff-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: var(--spacing-4);
-  cursor: pointer;
-  user-select: none;
-  transition: background var(--transition-base);
-}
-
-.diff-header:hover {
-  background: var(--color-gray-50);
-}
-
-.diff-header-left {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-2);
-}
-
-.expand-icon {
-  color: var(--color-gray-400);
-  transition: transform var(--transition-base);
-}
-
-.diff-header h4 {
-  margin: 0;
-  font-size: var(--text-lg);
-  font-weight: 700;
-  color: var(--color-gray-900);
-}
-
-.diff-summary {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--spacing-2);
-}
-
-.diff-badge {
-  padding: 0.25rem 0.75rem;
-  border-radius: var(--radius-md);
-  font-size: var(--text-xs);
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.diff-badge.added {
-  background: #ecfdf5;
-  color: #047857;
-  border: 1px solid #34d399;
-}
-
-.diff-badge.removed {
-  background: #fef2f2;
-  color: #dc2626;
-  border: 1px solid #fca5a5;
-}
-
-.diff-badge.modified {
-  background: #fffbeb;
-  color: #d97706;
-  border: 1px solid #fbbf24;
-}
-
-.diff-details {
-  border-top: 1px solid var(--color-gray-200);
-  padding: var(--spacing-4);
-  background: var(--color-gray-50);
-}
-
-.diff-section {
-  margin-bottom: var(--spacing-4);
-}
-
-.diff-section:last-child {
-  margin-bottom: 0;
-}
-
-.section-title {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-2);
-  margin: 0 0 var(--spacing-3) 0;
-  font-size: var(--text-sm);
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.section-title.added {
-  color: #047857;
-}
-
-.section-title.removed {
-  color: #dc2626;
-}
-
-.section-title.modified {
-  color: #d97706;
-}
-
-.diff-items {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-2);
-}
-
-.diff-item {
-  padding: var(--spacing-3);
-  border-radius: var(--radius-md);
-  font-family: 'Monaco', 'Courier New', monospace;
-  font-size: var(--text-sm);
-}
-
-.diff-item.added {
-  background: #f0fdf4;
-  border-left: 3px solid #10b981;
-}
-
-.diff-item.removed {
-  background: #fef2f2;
-  border-left: 3px solid #ef4444;
-}
-
-.diff-item.modified {
-  background: #fffbeb;
-  border-left: 3px solid #f59e0b;
-}
-
-.diff-line {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-2);
-}
-
-.diff-marker {
-  font-weight: 700;
-  font-size: var(--text-base);
-  width: 16px;
-  flex-shrink: 0;
-}
-
-.diff-item.added .diff-marker {
-  color: #10b981;
-}
-
-.diff-item.removed .diff-marker {
-  color: #ef4444;
-}
-
-.diff-item.modified .diff-marker {
-  color: #f59e0b;
-}
-
-.field-name {
-  font-weight: 700;
-  color: var(--color-gray-900);
-  background: rgba(0, 0, 0, 0.05);
-  padding: 0.125rem 0.375rem;
-  border-radius: var(--radius-sm);
-}
-
-.field-spec {
-  color: var(--color-gray-600);
-  font-size: var(--text-xs);
-}
-
-.relation-target {
-  color: var(--color-primary-600);
-  font-weight: 600;
-}
-
-.change-details {
-  margin-top: var(--spacing-2);
-  margin-left: calc(16px + var(--spacing-2));
-  padding-left: var(--spacing-3);
-  border-left: 2px solid rgba(0, 0, 0, 0.1);
-}
-
-.change-item {
-  font-size: var(--text-xs);
-  color: var(--color-gray-700);
-  padding: 0.125rem 0;
-}
-
-.no-changes {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: var(--spacing-6);
-  color: var(--color-gray-400);
-  text-align: center;
-}
-
-.no-changes p {
-  margin: var(--spacing-2) 0 0 0;
-  font-size: var(--text-sm);
-}
-</style>

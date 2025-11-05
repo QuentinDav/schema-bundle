@@ -29,13 +29,13 @@ function getIcon(type) {
 function getColorClasses(type) {
   switch (type) {
     case 'success':
-      return 'bg-[var(--color-success)] text-white'
+      return 'bg-gradient-to-r from-[#10b981] to-[#059669] text-white shadow-lg shadow-[#10b981]/30'
     case 'error':
-      return 'bg-[var(--color-danger)] text-white'
+      return 'bg-gradient-to-r from-[#ef4444] to-[#dc2626] text-white shadow-lg shadow-[#ef4444]/30'
     case 'warning':
-      return 'bg-[var(--color-warning)] text-white'
+      return 'bg-gradient-to-r from-[#f59e0b] to-[#d97706] text-white shadow-lg shadow-[#f59e0b]/30'
     default:
-      return 'bg-[var(--color-info)] text-white'
+      return 'bg-gradient-to-r from-[#3b82f6] to-[#2563eb] text-white shadow-lg shadow-[#3b82f6]/30'
   }
 }
 </script>

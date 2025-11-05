@@ -12,14 +12,12 @@ const result = ref(null)
 const isGenerating = ref(false)
 const showExamples = ref(true)
 
-// AI settings
 const useAi = ref(false)
 const aiAvailable = ref(false)
 const aiProvider = ref('Local')
 const estimatedCost = ref(null)
-const strategy = ref('local') // 'local', 'ai', 'hybrid'
+const strategy = ref('local')
 
-// Example prompts
 const examples = [
   'List all users',
   'Get all training with address in Paris',
@@ -28,7 +26,6 @@ const examples = [
   'Get training where name = test'
 ]
 
-// Check AI availability on mount
 onMounted(async () => {
   try {
     const response = await fetch('/schema-doc/api/nl-to-sql/status')
@@ -42,18 +39,15 @@ onMounted(async () => {
   }
 })
 
-// Update strategy based on useAi toggle
 const updateStrategy = () => {
   strategy.value = useAi.value ? 'ai' : 'local'
   estimatedCost.value = null
 
-  // Estimate cost immediately if AI is enabled and there's a prompt
   if (useAi.value && prompt.value.trim()) {
     estimateCostForPrompt()
   }
 }
 
-// Estimate cost when AI is enabled
 const estimateCostForPrompt = async () => {
   if (!useAi.value || !prompt.value.trim()) {
     estimatedCost.value = null
@@ -78,7 +72,6 @@ const estimateCostForPrompt = async () => {
   }
 }
 
-// Generate SQL from prompt - ALWAYS uses backend API
 async function generateSql() {
   if (!prompt.value.trim()) return
 
@@ -86,7 +79,6 @@ async function generateSql() {
   showExamples.value = false
 
   try {
-    // Always call backend API (handles both local and AI strategies)
     const response = await fetch('/schema-doc/api/nl-to-sql/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -112,33 +104,28 @@ async function generateSql() {
   }
 }
 
-// Use example prompt
 function useExample(example) {
   prompt.value = example
   showExamples.value = false
   generateSql()
 }
 
-// Copy SQL to clipboard
 async function copySql() {
   if (!result.value?.sql) return
 
   try {
     await navigator.clipboard.writeText(result.value.sql)
-    // Could add a toast notification here
   } catch (error) {
     console.error('Failed to copy:', error)
   }
 }
 
-// Clear result
 function clearResult() {
   result.value = null
   prompt.value = ''
   showExamples.value = true
 }
 
-// Visualize query in graph
 function visualizeQuery() {
   if (!result.value?.entities) return
 
@@ -147,232 +134,17 @@ function visualizeQuery() {
   emit('visualize-query', result.value)
 }
 
-// Handle Enter key (with Cmd/Ctrl for submit)
 function handleKeydown(event) {
   if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
     event.preventDefault()
     generateSql()
   }
 }
-</script>
 
-<template>
-  <div class="query-builder-panel">
-    <!-- Header -->
-    <div class="panel-header">
-      <div class="header-title">
-        <Icon name="command-line" :size="20" />
-        <h2>Query Builder</h2>
-      </div>
-      <p class="header-subtitle">
-        Describe what you want to query in natural language
-      </p>
-    </div>
-
-    <!-- AI Settings -->
-    <div v-if="aiAvailable" class="panel-section ai-settings-section">
-      <div class="ai-toggle-container">
-        <label class="ai-toggle-label">
-          <input
-            type="checkbox"
-            v-model="useAi"
-            @change="updateStrategy(); estimateCostForPrompt()"
-            class="ai-checkbox"
-          />
-          <span class="ai-toggle-text">
-            <Icon name="sparkles" :size="16" />
-            <span>Enhance with AI ({{ aiProvider }})</span>
-          </span>
-        </label>
-        <span v-if="estimatedCost !== null && useAi" class="cost-badge">
-          Est. cost: ${{ estimatedCost.toFixed(4) }}
-        </span>
-      </div>
-    </div>
-
-    <!-- Prompt Input -->
-    <div class="panel-section">
-      <div class="prompt-container">
-        <label class="prompt-label">Your Query</label>
-        <textarea
-          v-model="prompt"
-          @keydown="handleKeydown"
-          @input="useAi && estimateCostForPrompt()"
-          placeholder="Ex: Get all training where address in Paris and user age > 18"
-          class="prompt-textarea"
-          rows="4"
-        />
-        <div class="prompt-hint">
-          <Icon name="information-circle" :size="14" />
-          <span>Press Cmd+Enter to generate</span>
-        </div>
-      </div>
-
-      <div class="action-buttons">
-        <button
-          @click="generateSql"
-          :disabled="!prompt.trim() || isGenerating"
-          class="generate-btn"
-          :class="{ 'ai-enhanced': useAi }"
-        >
-          <Icon :name="isGenerating ? 'arrow-path' : (useAi ? 'sparkles' : 'code-bracket')" :size="18" />
-          <span>{{ isGenerating ? 'Generating...' : (useAi ? 'Generate with AI' : 'Generate SQL') }}</span>
-        </button>
-
-        <button
-          v-if="result"
-          @click="clearResult"
-          class="clear-btn"
-        >
-          <Icon name="x-mark" :size="16" />
-          <span>Clear</span>
-        </button>
-      </div>
-    </div>
-
-    <!-- Examples -->
-    <div v-if="showExamples && !result" class="panel-section examples-section">
-      <h3 class="section-title">
-        <Icon name="light-bulb" :size="18" />
-        <span>Examples</span>
-      </h3>
-      <div class="examples-list">
-        <button
-          v-for="(example, index) in examples"
-          :key="index"
-          @click="useExample(example)"
-          class="example-item"
-        >
-          <Icon name="arrow-right" :size="14" />
-          <span>{{ example }}</span>
-        </button>
-      </div>
-    </div>
-
-    <!-- Result Success -->
-    <div v-if="result?.success" class="panel-section result-section">
-      <!-- SQL Output -->
-      <div class="result-card sql-card">
-        <div class="card-header">
-          <h3 class="card-title">
-            <Icon name="code-bracket" :size="18" />
-            <span>Generated SQL</span>
-          </h3>
-          <div class="card-actions">
-            <span v-if="result.provider" class="provider-badge">
-              {{ result.provider }}
-            </span>
-            <span class="confidence-badge" :class="getConfidenceClass(result.confidence)">
-              {{ Math.round(result.confidence * 100) }}% confidence
-            </span>
-            <span v-if="result.cost" class="cost-badge-result">
-              ${{ result.cost.actual.toFixed(4) }}
-            </span>
-            <button @click="copySql" class="icon-btn" title="Copy SQL">
-              <Icon name="clipboard" :size="16" />
-            </button>
-          </div>
-        </div>
-        <pre class="sql-code">{{ result.sql }}</pre>
-      </div>
-
-      <!-- Explanation -->
-      <div class="result-card explanation-card">
-        <div class="card-header">
-          <h3 class="card-title">
-            <Icon name="information-circle" :size="18" />
-            <span>Explanation</span>
-          </h3>
-        </div>
-        <p class="explanation-text">{{ result.explanation }}</p>
-      </div>
-
-      <!-- Entities Used -->
-      <div class="result-card entities-card">
-        <div class="card-header">
-          <h3 class="card-title">
-            <Icon name="table-cells" :size="18" />
-            <span>Entities Used</span>
-          </h3>
-        </div>
-        <div class="entities-list">
-          <span
-            v-for="entity in result.entities"
-            :key="entity.name"
-            class="entity-badge"
-          >
-            {{ entity.name }}
-          </span>
-        </div>
-      </div>
-
-      <!-- Paths -->
-      <div v-if="result.paths && result.paths.length > 0" class="result-card paths-card">
-        <div class="card-header">
-          <h3 class="card-title">
-            <Icon name="map" :size="18" />
-            <span>Relation Paths</span>
-          </h3>
-        </div>
-        <div class="paths-list">
-          <div
-            v-for="(path, index) in result.paths"
-            :key="index"
-            class="path-item"
-          >
-            <span class="path-badge">{{ path.length }} hop{{ path.length > 1 ? 's' : '' }}</span>
-            <span class="path-formula">
-              {{ path.entities.map(e => e.name).join(' → ') }}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Visualize Button -->
-      <button @click="visualizeQuery" class="visualize-btn">
-        <Icon name="eye" :size="18" />
-        <span>Visualize in Graph</span>
-      </button>
-    </div>
-
-    <!-- Result Error -->
-    <div v-else-if="result && !result.success" class="panel-section error-section">
-      <div class="error-card">
-        <div class="error-icon">
-          <Icon name="exclamation-triangle" :size="48" />
-        </div>
-        <h3 class="error-title">{{ getErrorTitle(result.error) }}</h3>
-        <p class="error-message">{{ result.message }}</p>
-
-        <!-- Missing Paths -->
-        <div v-if="result.missingPaths" class="missing-paths">
-          <h4>Missing Relations:</h4>
-          <ul>
-            <li v-for="(path, index) in result.missingPaths" :key="index">
-              {{ path.from }} → {{ path.to }}
-            </li>
-          </ul>
-        </div>
-
-        <!-- Suggestions -->
-        <div v-if="result.suggestions" class="suggestions">
-          <h4>Suggestions:</h4>
-          <ul>
-            <li v-for="(suggestion, index) in result.suggestions" :key="index">
-              {{ suggestion }}
-            </li>
-          </ul>
-        </div>
-      </div>
-    </div>
-  </div>
-</template>
-
-<script>
 function getConfidenceClass(confidence) {
-  if (confidence >= 0.8) return 'high'
-  if (confidence >= 0.5) return 'medium'
-  return 'low'
+  if (confidence >= 0.8) return 'bg-[#ecfdf5] text-[#047857] border border-[#34d399]/30'
+  if (confidence >= 0.5) return 'bg-[#fffbeb] text-[#d97706] border border-[#fbbf24]/30'
+  return 'bg-[#fef2f2] text-[#dc2626] border border-[#fca5a5]/30'
 }
 
 function getErrorTitle(error) {
@@ -386,508 +158,204 @@ function getErrorTitle(error) {
 }
 </script>
 
-<style scoped>
-.query-builder-panel {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  background: var(--color-gray-50);
-  overflow-y: auto;
-}
-
-/* Header */
-.panel-header {
-  padding: var(--spacing-4);
-  background: white;
-  border-bottom: 1px solid var(--color-gray-200);
-}
-
-.header-title {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-2);
-  margin-bottom: var(--spacing-1);
-}
-
-.header-title h2 {
-  margin: 0;
-  font-size: var(--text-lg);
-  font-weight: 700;
-  color: var(--color-gray-900);
-}
-
-.header-subtitle {
-  margin: 0;
-  font-size: var(--text-sm);
-  color: var(--color-gray-600);
-}
-
-/* Section */
-.panel-section {
-  padding: var(--spacing-4);
-  background: white;
-  border-bottom: 1px solid var(--color-gray-200);
-}
-
-.section-title {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-2);
-  margin: 0 0 var(--spacing-3) 0;
-  font-size: var(--text-base);
-  font-weight: 700;
-  color: var(--color-gray-900);
-}
-
-/* Prompt Input */
-.prompt-container {
-  margin-bottom: var(--spacing-3);
-}
-
-.prompt-label {
-  display: block;
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--color-gray-700);
-  margin-bottom: var(--spacing-1-5);
-}
-
-.prompt-textarea {
-  width: 100%;
-  padding: var(--spacing-3);
-  background: var(--color-gray-50);
-  border: 1px solid var(--color-gray-300);
-  border-radius: var(--radius-lg);
-  font-size: var(--text-sm);
-  font-family: inherit;
-  color: var(--color-gray-900);
-  resize: vertical;
-  min-height: 80px;
-  transition: all var(--transition-base);
-}
-
-.prompt-textarea:focus {
-  outline: none;
-  border-color: var(--color-primary-500);
-  background: white;
-  box-shadow: 0 0 0 3px var(--color-primary-100);
-}
-
-.prompt-hint {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-1);
-  margin-top: var(--spacing-1);
-  font-size: var(--text-xs);
-  color: var(--color-gray-500);
-}
-
-/* AI Settings */
-.ai-settings-section {
-  background: var(--color-blue-50);
-  border-bottom: 2px solid var(--color-blue-200);
-}
-
-.ai-toggle-container {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--spacing-2);
-}
-
-.ai-toggle-label {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-2);
-  cursor: pointer;
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--color-gray-700);
-}
-
-.ai-checkbox {
-  width: 18px;
-  height: 18px;
-  cursor: pointer;
-}
-
-.ai-toggle-text {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-1-5);
-}
-
-.cost-badge {
-  padding: 4px var(--spacing-2);
-  background: var(--color-yellow-100);
-  color: var(--color-yellow-800);
-  font-size: var(--text-xs);
-  font-weight: 700;
-  border-radius: var(--radius-full);
-}
-
-.provider-badge {
-  padding: 4px var(--spacing-2);
-  background: var(--color-blue-100);
-  color: var(--color-blue-700);
-  font-size: var(--text-xs);
-  font-weight: 700;
-  border-radius: var(--radius-sm);
-  text-transform: uppercase;
-}
-
-.cost-badge-result {
-  padding: 4px var(--spacing-2);
-  background: var(--color-green-100);
-  color: var(--color-green-700);
-  font-size: var(--text-xs);
-  font-weight: 700;
-  border-radius: var(--radius-full);
-}
-
-/* Action Buttons */
-.action-buttons {
-  display: flex;
-  gap: var(--spacing-2);
-}
-
-.generate-btn {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--spacing-2);
-  padding: var(--spacing-3);
-  background: linear-gradient(135deg, var(--color-primary-500) 0%, var(--color-primary-600) 100%);
-  color: white;
-  border: none;
-  border-radius: var(--radius-lg);
-  font-size: var(--text-base);
-  font-weight: 600;
-  cursor: pointer;
-  transition: all var(--transition-base);
-}
-
-.generate-btn.ai-enhanced {
-  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
-}
-
-.generate-btn:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-md);
-}
-
-.generate-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.clear-btn {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-2);
-  padding: var(--spacing-2-5) var(--spacing-3);
-  background: white;
-  border: 2px solid var(--color-gray-300);
-  border-radius: var(--radius-lg);
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--color-gray-700);
-  cursor: pointer;
-  transition: all var(--transition-base);
-}
-
-.clear-btn:hover {
-  border-color: var(--color-red-500);
-  color: var(--color-red-600);
-  background: var(--color-red-50);
-}
-
-/* Examples */
-.examples-section {
-  background: var(--color-gray-50);
-}
-
-.examples-list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-2);
-}
-
-.example-item {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-2);
-  padding: var(--spacing-3);
-  background: white;
-  border: 1px solid var(--color-gray-200);
-  border-radius: var(--radius-lg);
-  font-size: var(--text-sm);
-  color: var(--color-gray-700);
-  text-align: left;
-  cursor: pointer;
-  transition: all var(--transition-base);
-}
-
-.example-item:hover {
-  border-color: var(--color-primary-300);
-  background: var(--color-primary-50);
-  color: var(--color-primary-700);
-  transform: translateX(4px);
-}
-
-/* Result Cards */
-.result-section {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-3);
-}
-
-.result-card {
-  background: white;
-  border: 1px solid var(--color-gray-200);
-  border-radius: var(--radius-lg);
-  overflow: hidden;
-}
-
-.card-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: var(--spacing-3);
-  background: var(--color-gray-50);
-  border-bottom: 1px solid var(--color-gray-200);
-}
-
-.card-title {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-2);
-  margin: 0;
-  font-size: var(--text-sm);
-  font-weight: 700;
-  color: var(--color-gray-900);
-}
-
-.card-actions {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-2);
-}
-
-.confidence-badge {
-  padding: 4px var(--spacing-2);
-  font-size: var(--text-xs);
-  font-weight: 700;
-  border-radius: var(--radius-full);
-}
-
-.confidence-badge.high {
-  background: var(--color-green-100);
-  color: var(--color-green-700);
-}
-
-.confidence-badge.medium {
-  background: var(--color-yellow-100);
-  color: var(--color-yellow-700);
-}
-
-.confidence-badge.low {
-  background: var(--color-red-100);
-  color: var(--color-red-700);
-}
-
-.icon-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  background: white;
-  border: 1px solid var(--color-gray-300);
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  transition: all var(--transition-base);
-  color: var(--color-gray-600);
-}
-
-.icon-btn:hover {
-  background: var(--color-gray-100);
-  border-color: var(--color-primary-500);
-  color: var(--color-primary-600);
-}
-
-/* SQL Code */
-.sql-code {
-  padding: var(--spacing-4);
-  background: #1e1e1e;
-  color: #d4d4d4;
-  font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
-  font-size: var(--text-sm);
-  line-height: 1.6;
-  overflow-x: auto;
-  margin: 0;
-}
-
-/* Explanation */
-.explanation-text {
-  padding: var(--spacing-4);
-  margin: 0;
-  font-size: var(--text-sm);
-  color: var(--color-gray-700);
-  line-height: 1.6;
-}
-
-/* Entities */
-.entities-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--spacing-2);
-  padding: var(--spacing-3);
-}
-
-.entity-badge {
-  padding: 6px var(--spacing-3);
-  background: var(--color-primary-100);
-  color: var(--color-primary-700);
-  font-size: var(--text-sm);
-  font-weight: 600;
-  border-radius: var(--radius-full);
-}
-
-/* Paths */
-.paths-list {
-  padding: var(--spacing-3);
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-2);
-}
-
-.path-item {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-2);
-  padding: var(--spacing-2);
-  background: var(--color-gray-50);
-  border-radius: var(--radius-md);
-}
-
-.path-badge {
-  padding: 4px var(--spacing-2);
-  background: var(--color-blue-100);
-  color: var(--color-blue-700);
-  font-size: var(--text-xs);
-  font-weight: 700;
-  border-radius: var(--radius-sm);
-}
-
-.path-formula {
-  font-size: var(--text-sm);
-  color: var(--color-gray-700);
-  font-weight: 500;
-}
-
-/* Visualize Button */
-.visualize-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--spacing-2);
-  padding: var(--spacing-3);
-  background: white;
-  border: 2px solid var(--color-primary-500);
-  border-radius: var(--radius-lg);
-  font-size: var(--text-base);
-  font-weight: 600;
-  color: var(--color-primary-600);
-  cursor: pointer;
-  transition: all var(--transition-base);
-}
-
-.visualize-btn:hover {
-  background: var(--color-primary-50);
-  transform: translateY(-1px);
-}
-
-/* Error */
-.error-section {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.error-card {
-  width: 100%;
-  text-align: center;
-  padding: var(--spacing-6);
-  background: white;
-  border: 1px solid var(--color-red-200);
-  border-radius: var(--radius-lg);
-}
-
-.error-icon {
-  margin-bottom: var(--spacing-3);
-  color: var(--color-red-500);
-}
-
-.error-title {
-  font-size: var(--text-xl);
-  font-weight: 700;
-  color: var(--color-red-700);
-  margin: 0 0 var(--spacing-2) 0;
-}
-
-.error-message {
-  font-size: var(--text-base);
-  color: var(--color-gray-700);
-  margin: 0 0 var(--spacing-4) 0;
-}
-
-.missing-paths,
-.suggestions {
-  text-align: left;
-  margin-top: var(--spacing-4);
-  padding: var(--spacing-3);
-  background: var(--color-gray-50);
-  border-radius: var(--radius-md);
-}
-
-.missing-paths h4,
-.suggestions h4 {
-  font-size: var(--text-sm);
-  font-weight: 700;
-  color: var(--color-gray-900);
-  margin: 0 0 var(--spacing-2) 0;
-}
-
-.missing-paths ul,
-.suggestions ul {
-  margin: 0;
-  padding-left: var(--spacing-4);
-  font-size: var(--text-sm);
-  color: var(--color-gray-700);
-}
-
-.missing-paths li,
-.suggestions li {
-  margin-bottom: var(--spacing-1);
-}
-
-/* Scrollbar */
-.query-builder-panel::-webkit-scrollbar {
-  width: 8px;
-}
-
-.query-builder-panel::-webkit-scrollbar-track {
-  background: var(--color-gray-100);
-}
-
-.query-builder-panel::-webkit-scrollbar-thumb {
-  background: var(--color-gray-300);
-  border-radius: var(--radius-full);
-}
-
-.query-builder-panel::-webkit-scrollbar-thumb:hover {
-  background: var(--color-gray-400);
-}
-</style>
+<template>
+  <div class="h-full flex flex-col bg-[var(--color-surface)] overflow-y-auto">
+    <div class="px-4 py-4 bg-[var(--color-surface-raised)] border-b border-[var(--color-border)]">
+      <div class="flex items-center gap-2 mb-1">
+        <Icon name="command-line" :size="20" class="text-[var(--color-primary)]" />
+        <h2 class="m-0 text-base font-bold text-[var(--color-text-primary)]">Query Builder</h2>
+      </div>
+      <p class="m-0 text-sm text-[var(--color-text-secondary)]">
+        Describe what you want to query in natural language
+      </p>
+    </div>
+
+    <div v-if="aiAvailable" class="px-4 py-4 bg-gradient-to-r from-[#3b82f6]/10 to-[#8b5cf6]/10 border-b-2 border-[#3b82f6]/30">
+      <div class="flex items-center justify-between gap-2">
+        <label class="flex items-center gap-2 cursor-pointer text-sm font-semibold text-[var(--color-text-primary)]">
+          <input
+            type="checkbox"
+            v-model="useAi"
+            @change="updateStrategy(); estimateCostForPrompt()"
+            class="w-4 h-4 cursor-pointer"
+            style="accent-color: var(--color-primary)"
+          />
+          <span class="flex items-center gap-1.5">
+            <Icon name="sparkles" :size="16" />
+            <span>Enhance with AI ({{ aiProvider }})</span>
+          </span>
+        </label>
+        <span v-if="estimatedCost !== null && useAi" class="px-2 py-1 bg-[#fef3c7] text-[#d97706] text-xs font-bold rounded-full">
+          Est. cost: ${{ estimatedCost.toFixed(4) }}
+        </span>
+      </div>
+    </div>
+
+    <div class="px-4 py-4 bg-[var(--color-surface-raised)] border-b border-[var(--color-border)]">
+      <div class="mb-3">
+        <label class="block text-sm font-semibold text-[var(--color-text-primary)] mb-1.5">Your Query</label>
+        <textarea
+          v-model="prompt"
+          @keydown="handleKeydown"
+          @input="useAi && estimateCostForPrompt()"
+          placeholder="Ex: Get all training where address in Paris and user age > 18"
+          class="w-full px-3 py-3 bg-[var(--color-background)] border border-[var(--color-border)] rounded-lg text-sm font-sans text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] resize-vertical min-h-[80px] transition-all duration-200 focus:outline-none focus:border-[var(--color-primary)] focus:bg-[var(--color-surface)] focus:shadow-lg focus:shadow-[var(--color-primary)]/10"
+          rows="4"
+        />
+        <div class="flex items-center gap-1 mt-1 text-xs text-[var(--color-text-secondary)]">
+          <Icon name="information-circle" :size="14" />
+          <span>Press Cmd+Enter to generate</span>
+        </div>
+      </div>
+
+      <div class="flex gap-2">
+        <button
+          @click="generateSql"
+          :disabled="!prompt.trim() || isGenerating"
+          class="flex-1 flex items-center justify-center gap-2 px-3 py-3 border-0 rounded-lg text-sm font-semibold cursor-pointer transition-all duration-200 text-white disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-md hover:-translate-y-px"
+          :class="useAi ? 'bg-gradient-to-r from-[#8b5cf6] to-[#7c3aed]' : 'bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-hover)]'"
+        >
+          <Icon :name="isGenerating ? 'arrow-path' : (useAi ? 'sparkles' : 'code-bracket')" :size="18" :class="{ 'animate-spin': isGenerating }" />
+          <span>{{ isGenerating ? 'Generating...' : (useAi ? 'Generate with AI' : 'Generate SQL') }}</span>
+        </button>
+
+        <button
+          v-if="result"
+          @click="clearResult"
+          class="flex items-center gap-2 px-3 py-2.5 bg-[var(--color-surface)] border-2 border-[var(--color-border)] rounded-lg text-sm font-semibold text-[var(--color-text-primary)] cursor-pointer transition-all duration-200 hover:border-[var(--color-danger)] hover:text-[var(--color-danger)] hover:bg-[var(--color-danger-light)]"
+        >
+          <Icon name="x-mark" :size="16" />
+          <span>Clear</span>
+        </button>
+      </div>
+    </div>
+
+    <div v-if="showExamples && !result" class="px-4 py-4 bg-[var(--color-surface-raised)] border-b border-[var(--color-border)]">
+      <h3 class="flex items-center gap-2 m-0 mb-3 text-base font-bold text-[var(--color-text-primary)]">
+        <Icon name="light-bulb" :size="18" />
+        <span>Examples</span>
+      </h3>
+      <div class="flex flex-col gap-2">
+        <button
+          v-for="(example, index) in examples"
+          :key="index"
+          @click="useExample(example)"
+          class="flex items-center gap-2 px-3 py-3 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg text-sm text-[var(--color-text-primary)] text-left cursor-pointer transition-all duration-200 hover:border-[var(--color-primary)]/30 hover:bg-[var(--color-primary-light)] hover:text-[var(--color-primary)] hover:translate-x-1"
+        >
+          <Icon name="arrow-right" :size="14" />
+          <span>{{ example }}</span>
+        </button>
+      </div>
+    </div>
+
+    <div v-if="result?.success" class="px-4 py-4 flex flex-col gap-3">
+      <div class="bg-[var(--color-surface-raised)] border border-[var(--color-border)] rounded-lg overflow-hidden">
+        <div class="flex items-center justify-between px-3 py-3 bg-[var(--color-surface)] border-b border-[var(--color-border)]">
+          <h3 class="flex items-center gap-2 m-0 text-sm font-bold text-[var(--color-text-primary)]">
+            <Icon name="code-bracket" :size="18" />
+            <span>Generated SQL</span>
+          </h3>
+          <div class="flex items-center gap-2">
+            <span v-if="result.provider" class="px-2 py-1 bg-[#dbeafe] text-[#1e40af] text-xs font-bold rounded uppercase">
+              {{ result.provider }}
+            </span>
+            <span class="px-2 py-1 text-xs font-bold rounded-full" :class="getConfidenceClass(result.confidence)">
+              {{ Math.round(result.confidence * 100) }}% confidence
+            </span>
+            <span v-if="result.cost" class="px-2 py-1 bg-[#d1fae5] text-[#065f46] text-xs font-bold rounded-full">
+              ${{ result.cost.actual.toFixed(4) }}
+            </span>
+            <button @click="copySql" class="flex items-center justify-center w-8 h-8 bg-[var(--color-surface-raised)] border border-[var(--color-border)] rounded-md cursor-pointer transition-all duration-200 text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]" title="Copy SQL">
+              <Icon name="clipboard" :size="16" />
+            </button>
+          </div>
+        </div>
+        <pre class="px-4 py-4 bg-[#1e1e1e] text-[#d4d4d4] font-mono text-sm leading-relaxed overflow-x-auto m-0">{{ result.sql }}</pre>
+      </div>
+
+      <div class="bg-[var(--color-surface-raised)] border border-[var(--color-border)] rounded-lg overflow-hidden">
+        <div class="px-3 py-3 bg-[var(--color-surface)] border-b border-[var(--color-border)]">
+          <h3 class="flex items-center gap-2 m-0 text-sm font-bold text-[var(--color-text-primary)]">
+            <Icon name="information-circle" :size="18" />
+            <span>Explanation</span>
+          </h3>
+        </div>
+        <p class="px-4 py-4 m-0 text-sm text-[var(--color-text-primary)] leading-relaxed">{{ result.explanation }}</p>
+      </div>
+
+      <div class="bg-[var(--color-surface-raised)] border border-[var(--color-border)] rounded-lg overflow-hidden">
+        <div class="px-3 py-3 bg-[var(--color-surface)] border-b border-[var(--color-border)]">
+          <h3 class="flex items-center gap-2 m-0 text-sm font-bold text-[var(--color-text-primary)]">
+            <Icon name="table-cells" :size="18" />
+            <span>Entities Used</span>
+          </h3>
+        </div>
+        <div class="flex flex-wrap gap-2 px-3 py-3">
+          <span
+            v-for="entity in result.entities"
+            :key="entity.name"
+            class="px-3 py-1.5 bg-[var(--color-primary-light)] text-[var(--color-primary)] text-sm font-semibold rounded-full"
+          >
+            {{ entity.name }}
+          </span>
+        </div>
+      </div>
+
+      <div v-if="result.paths && result.paths.length > 0" class="bg-[var(--color-surface-raised)] border border-[var(--color-border)] rounded-lg overflow-hidden">
+        <div class="px-3 py-3 bg-[var(--color-surface)] border-b border-[var(--color-border)]">
+          <h3 class="flex items-center gap-2 m-0 text-sm font-bold text-[var(--color-text-primary)]">
+            <Icon name="map" :size="18" />
+            <span>Relation Paths</span>
+          </h3>
+        </div>
+        <div class="px-3 py-3 flex flex-col gap-2">
+          <div
+            v-for="(path, index) in result.paths"
+            :key="index"
+            class="flex items-center gap-2 px-2 py-2 bg-[var(--color-surface)] rounded-md"
+          >
+            <span class="px-1.5 py-px bg-[#dbeafe] text-[#1e40af] text-xs font-bold rounded">
+              {{ path.length }} hop{{ path.length > 1 ? 's' : '' }}
+            </span>
+            <span class="text-sm text-[var(--color-text-primary)] font-medium">
+              {{ path.entities.map(e => e.name).join(' → ') }}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <button @click="visualizeQuery" class="flex items-center justify-center gap-2 px-3 py-3 bg-[var(--color-surface-raised)] border-2 border-[var(--color-primary)] rounded-lg text-base font-semibold text-[var(--color-primary)] cursor-pointer transition-all duration-200 hover:bg-[var(--color-primary-light)] hover:-translate-y-px">
+        <Icon name="eye" :size="18" />
+        <span>Visualize in Graph</span>
+      </button>
+    </div>
+
+    <div v-else-if="result && !result.success" class="px-4 py-4 flex flex-col items-center">
+      <div class="w-full text-center px-6 py-6 bg-[var(--color-surface-raised)] border border-[var(--color-danger)]/30 rounded-lg">
+        <div class="mb-3 text-[var(--color-danger)]">
+          <Icon name="exclamation-triangle" :size="48" />
+        </div>
+        <h3 class="text-xl font-bold text-[var(--color-danger)] m-0 mb-2">{{ getErrorTitle(result.error) }}</h3>
+        <p class="text-base text-[var(--color-text-primary)] m-0 mb-4">{{ result.message }}</p>
+
+        <div v-if="result.missingPaths" class="text-left mt-4 px-3 py-3 bg-[var(--color-surface)] rounded-md">
+          <h4 class="text-sm font-bold text-[var(--color-text-primary)] m-0 mb-2">Missing Relations:</h4>
+          <ul class="m-0 pl-4 text-sm text-[var(--color-text-secondary)]">
+            <li v-for="(path, index) in result.missingPaths" :key="index" class="mb-1">
+              {{ path.from }} → {{ path.to }}
+            </li>
+          </ul>
+        </div>
+
+        <div v-if="result.suggestions" class="text-left mt-4 px-3 py-3 bg-[var(--color-surface)] rounded-md">
+          <h4 class="text-sm font-bold text-[var(--color-text-primary)] m-0 mb-2">Suggestions:</h4>
+          <ul class="m-0 pl-4 text-sm text-[var(--color-text-secondary)]">
+            <li v-for="(suggestion, index) in result.suggestions" :key="index" class="mb-1">
+              {{ suggestion }}
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
