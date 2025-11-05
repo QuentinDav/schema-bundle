@@ -73,79 +73,79 @@ function handleClose() {
 
 <template>
   <Transition name="modal">
-    <div class="modal-overlay" @click="handleClose">
-      <div class="modal-content" @click.stop>
-        <div class="modal-header">
-          <h2>Create New Release</h2>
-          <button @click="handleClose" class="close-btn" :disabled="isSubmitting">
+    <div class="fixed inset-0 bg-black/60 flex items-center justify-center z-[1000] backdrop-blur-sm" @click="handleClose">
+      <div class="bg-[var(--color-surface)] rounded-2xl w-[90%] max-w-[600px] shadow-2xl overflow-hidden" @click.stop>
+        <div class="flex items-center justify-between px-8 py-6 border-b border-[var(--color-border)] bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-hover)]">
+          <h2 class="m-0 text-2xl font-bold text-white">Create New Release</h2>
+          <button @click="handleClose" class="w-8 h-8 flex items-center justify-center cursor-pointer rounded-md transition-all duration-200 text-white hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed" :disabled="isSubmitting">
             <Icon name="x-mark" :size="24" />
           </button>
         </div>
 
-        <div class="modal-body">
-          <p class="description">
+        <div class="p-8">
+          <p class="m-0 mb-6 text-[var(--color-text-secondary)] text-sm leading-relaxed">
             Snapshot the current state of your database schema with automatic semantic versioning.
           </p>
 
           <form @submit.prevent="handleSubmit">
-            <div class="form-group">
-              <label>Version Type</label>
-              <div class="version-options">
+            <div class="mb-6">
+              <label class="block mb-3 font-semibold text-[var(--color-text-primary)] text-sm">Version Type</label>
+              <div class="flex flex-col gap-3">
                 <div
                   v-for="type in ['major', 'minor', 'patch']"
                   :key="type"
-                  class="version-option"
-                  :class="{ selected: versionType === type }"
+                  class="p-4 border-2 rounded-xl cursor-pointer transition-all duration-200 bg-[var(--color-surface-raised)]"
+                  :class="versionType === type ? 'border-[var(--color-primary)] bg-[var(--color-primary-light)] shadow-lg shadow-[var(--color-primary)]/10' : 'border-[var(--color-border)] hover:border-[var(--color-primary)]/50 hover:bg-[var(--color-surface-hover)]'"
                   @click="versionType = type"
                 >
-                  <div class="version-header">
-                    <div class="radio-circle">
-                      <div v-if="versionType === type" class="radio-dot"></div>
+                  <div class="flex items-center gap-3">
+                    <div class="w-5 h-5 border-2 rounded-full flex items-center justify-center flex-shrink-0 transition-colors duration-200" :class="versionType === type ? 'border-[var(--color-primary)]' : 'border-[var(--color-border)]'">
+                      <div v-if="versionType === type" class="w-2.5 h-2.5 bg-[var(--color-primary)] rounded-full"></div>
                     </div>
-                    <div class="version-info">
-                      <span class="version-type">{{ type.toUpperCase() }}</span>
-                      <span v-if="!isLoadingSuggestion" class="version-number">
+                    <div class="flex items-baseline gap-3 flex-1">
+                      <span class="font-bold text-sm text-[var(--color-text-primary)] uppercase tracking-wide">{{ type }}</span>
+                      <span v-if="!isLoadingSuggestion" class="text-lg font-bold text-[var(--color-primary)] font-mono">
                         {{ suggestedVersions?.[type] || 'v1.0.0' }}
                       </span>
-                      <span v-else class="version-loading">Loading...</span>
+                      <span v-else class="text-sm text-[var(--color-text-tertiary)] italic">Loading...</span>
                     </div>
                   </div>
-                  <p v-if="versionType === type" class="version-description">
+                  <p v-if="versionType === type" class="mt-2 ml-8 text-xs text-[var(--color-text-secondary)] leading-relaxed">
                     {{ versionExplanation }}
                   </p>
                 </div>
               </div>
             </div>
 
-            <div class="selected-version-display">
-              <Icon name="sparkles" :size="20" />
-              <span>Release will be created as: <strong>{{ selectedVersion }}</strong></span>
+            <div class="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-[#10b981]/10 to-[#3b82f6]/10 border border-[#10b981]/30 rounded-xl mb-6 text-sm text-[var(--color-text-primary)]">
+              <Icon name="sparkles" :size="20" class="text-[#10b981]" />
+              <span>Release will be created as: <strong class="font-bold text-[#10b981] font-mono">{{ selectedVersion }}</strong></span>
             </div>
 
-            <div class="form-group">
-              <label for="release-description">Description (optional)</label>
+            <div class="mb-6">
+              <label for="release-description" class="block mb-3 font-semibold text-[var(--color-text-primary)] text-sm">Description (optional)</label>
               <textarea
                 id="release-description"
                 v-model="description"
                 placeholder="Describe what changed in this release..."
-                class="textarea"
+                class="w-full px-4 py-3 border border-[var(--color-border)] rounded-lg font-sans text-base transition-all duration-200 resize-vertical min-h-[100px] bg-[var(--color-background)] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] focus:outline-none focus:border-[var(--color-primary)] focus:shadow-lg focus:shadow-[var(--color-primary)]/10 disabled:bg-[var(--color-surface-hover)] disabled:cursor-not-allowed"
                 :disabled="isSubmitting"
                 rows="4"
               ></textarea>
             </div>
 
-            <div v-if="errorMessage" class="error-message">
+            <div v-if="errorMessage" class="flex items-center gap-2 px-4 py-3 bg-[var(--color-danger-light)] border border-[var(--color-danger)]/30 rounded-lg text-[var(--color-danger)] text-sm mb-6">
               <Icon name="exclamation-triangle" :size="16" />
               {{ errorMessage }}
             </div>
 
-            <div class="modal-actions">
-              <button type="button" @click="handleClose" class="btn btn-secondary" :disabled="isSubmitting">
+            <div class="flex gap-4 justify-end">
+              <button type="button" @click="handleClose" class="px-6 py-3 border-0 rounded-lg font-semibold text-sm cursor-pointer transition-all duration-200 flex items-center justify-center min-w-[120px] bg-[var(--color-surface-hover)] text-[var(--color-text-primary)] hover:bg-[var(--color-border)] disabled:opacity-60 disabled:cursor-not-allowed" :disabled="isSubmitting">
                 Cancel
               </button>
-              <button type="submit" class="btn btn-primary" :disabled="isSubmitting">
+              <button type="submit" class="px-6 py-3 border-0 rounded-lg font-semibold text-sm cursor-pointer transition-all duration-200 flex items-center justify-center min-w-[120px] bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-hover)] text-white hover:-translate-y-px hover:shadow-lg hover:shadow-[var(--color-primary)]/40 disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none" :disabled="isSubmitting">
                 <span v-if="!isSubmitting">Create Release</span>
-                <span v-else class="spinner"></span>
+                <span v-else class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
               </button>
             </div>
           </form>
@@ -156,301 +156,23 @@ function handleClose() {
 </template>
 
 <style scoped>
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.6);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  backdrop-filter: blur(4px);
+.modal-enter-from,
+.modal-leave-to {
+  opacity: 0;
 }
 
-.modal-content {
-  background: white;
-  border-radius: 16px;
-  width: 90%;
-  max-width: 600px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-  overflow: hidden;
-}
-
-.modal-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 1.5rem 2rem;
-  border-bottom: 1px solid #e5e7eb;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-}
-
-.modal-header h2 {
-  margin: 0;
-  font-size: 1.5rem;
-  font-weight: 700;
-}
-
-.close-btn {
-  background: none;
-  border: none;
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  border-radius: 6px;
-  transition: background 0.2s ease;
-  color: white;
-}
-
-.close-btn:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.2);
-}
-
-.close-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.modal-body {
-  padding: 2rem;
-}
-
-.description {
-  margin: 0 0 1.5rem 0;
-  color: #6b7280;
-  font-size: 0.875rem;
-  line-height: 1.6;
-}
-
-.form-group {
-  margin-bottom: 1.5rem;
-}
-
-.form-group label {
-  display: block;
-  margin-bottom: 0.75rem;
-  font-weight: 600;
-  color: #374151;
-  font-size: 0.875rem;
-}
-
-.version-options {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.version-option {
-  padding: 1rem;
-  border: 2px solid #e5e7eb;
-  border-radius: 12px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  background: white;
-}
-
-.version-option:hover {
-  border-color: #667eea;
-  background: #f9fafb;
-}
-
-.version-option.selected {
-  border-color: #667eea;
-  background: linear-gradient(135deg, #667eea08 0%, #764ba208 100%);
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-}
-
-.version-header {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.radio-circle {
-  width: 20px;
-  height: 20px;
-  border: 2px solid #d1d5db;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  transition: border-color 0.2s ease;
-}
-
-.version-option.selected .radio-circle {
-  border-color: #667eea;
-}
-
-.radio-dot {
-  width: 10px;
-  height: 10px;
-  background: #667eea;
-  border-radius: 50%;
-}
-
-.version-info {
-  display: flex;
-  align-items: baseline;
-  gap: 0.75rem;
-  flex: 1;
-}
-
-.version-type {
-  font-weight: 700;
-  font-size: 0.875rem;
-  color: #374151;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.version-number {
-  font-size: 1.125rem;
-  font-weight: 700;
-  color: #667eea;
-  font-family: 'Monaco', 'Courier New', monospace;
-}
-
-.version-loading {
-  font-size: 0.875rem;
-  color: #9ca3af;
-  font-style: italic;
-}
-
-.version-description {
-  margin: 0.5rem 0 0 2.5rem;
-  font-size: 0.75rem;
-  color: #6b7280;
-  line-height: 1.5;
-}
-
-.selected-version-display {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 1rem;
-  background: linear-gradient(135deg, #ecfdf5 0%, #dbeafe 100%);
-  border: 1px solid #a7f3d0;
-  border-radius: 12px;
-  margin-bottom: 1.5rem;
-  font-size: 0.875rem;
-  color: #065f46;
-}
-
-.selected-version-display strong {
-  font-weight: 700;
-  color: #047857;
-  font-family: 'Monaco', 'Courier New', monospace;
-}
-
-.textarea {
-  width: 100%;
-  padding: 0.75rem 1rem;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
-  font-family: inherit;
-  font-size: 1rem;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
-  resize: vertical;
-  min-height: 100px;
-}
-
-.textarea:focus {
-  outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-}
-
-.textarea:disabled {
-  background: #f3f4f6;
-  cursor: not-allowed;
-}
-
-.error-message {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1rem;
-  background: #fee2e2;
-  border: 1px solid #fecaca;
-  border-radius: 8px;
-  color: #dc2626;
-  font-size: 0.875rem;
-  margin-bottom: 1.5rem;
-}
-
-.modal-actions {
-  display: flex;
-  gap: 1rem;
-  justify-content: flex-end;
-}
-
-.btn {
-  padding: 0.75rem 1.5rem;
-  border: none;
-  border-radius: 8px;
-  font-weight: 600;
-  font-size: 0.875rem;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 120px;
-}
-
-.btn-secondary {
-  background: #f3f4f6;
-  color: #374151;
-}
-
-.btn-secondary:hover:not(:disabled) {
-  background: #e5e7eb;
-}
-
-.btn-primary {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-}
-
-.btn-primary:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-}
-
-.btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  transform: none;
-}
-
-.spinner {
-  width: 16px;
-  height: 16px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  border-top-color: white;
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.modal-enter-from .modal-content {
+.modal-enter-from > div,
+.modal-leave-to > div {
   transform: scale(0.9);
 }
 
-.modal-leave-to .modal-content {
-  transform: scale(0.9);
+.modal-enter-active,
+.modal-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.modal-enter-active > div,
+.modal-leave-active > div {
+  transition: transform 0.2s ease;
 }
 </style>
