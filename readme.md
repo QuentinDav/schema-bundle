@@ -373,8 +373,6 @@ Perfect for:
 
 ## 🧪 Testing
 
-We take quality seriously:
-
 ```bash
 # Run tests
 vendor/bin/phpunit
@@ -396,21 +394,10 @@ vendor/bin/phpunit --coverage-html coverage
 
 ### Coming Soon
 - [ ] 🌙 Dark/Light theme toggle
-- [ ] 📬 Email notifications for mentions
+- [ ] 📬 Email / Slack / Discord notifications for mentions
 - [ ] 🔍 Advanced search with filters
 - [ ] 📊 Schema statistics dashboard
 - [ ] 🔄 Auto-generate Doctrine migrations from diffs
-
-### Under Consideration
-- [ ] 🎨 Custom entity colors and icons
-- [ ] 📱 Mobile app
-- [ ] 🔌 Webhooks for CI/CD integration
-- [ ] 🌐 Multi-language support
-- [ ] 🔐 API tokens for external tools
-- [ ] 💬 Slack/Discord notifications
-- [ ] 📤 Export to other formats (SQL, JSON, etc.)
-
-**Vote on features or suggest new ones in [GitHub Discussions](https://github.com/quentindavid/qd-schema-bundle/discussions)!**
 
 ---
 
@@ -512,6 +499,6 @@ This bundle wouldn't exist without these amazing open-source projects:
 
 If QdSchemaBundle saves you time, please consider ⭐ starring the repo!
 
-[Report Bug](https://github.com/quentindavid/qd-schema-bundle/issues) · [Request Feature](https://github.com/quentindavid/qd-schema-bundle/discussions) · [Documentation](https://github.com/quentindavid/qd-schema-bundle/wiki)
+[Report Bug](https://github.com/quentindavid/qd-schema-bundle/issues) ·  [Documentation](https://github.com/quentindavid/qd-schema-bundle/wiki)
 
 </div>
