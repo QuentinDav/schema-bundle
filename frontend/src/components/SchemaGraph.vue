@@ -89,57 +89,70 @@ const nodes = computed(() => {
 })
 
 const edges = computed(() => {
+  // Don't render edges if nodes aren't ready yet
+  if (nodes.value.length === 0) {
+    return []
+  }
+
   const showLabels = shouldShowLabels.value
+  const nodeIds = new Set(nodes.value.map(n => n.id))
 
-  return props.relations.map((relation, index) => {
-    const sourceId = relation.from.fqcn || relation.from.name
-    const targetId = relation.to.fqcn || relation.to.name
-    const edgeColor = getEdgeColor(relation.type)
+  return props.relations
+    .filter(relation => {
+      const sourceId = relation.from.fqcn || relation.from.name
+      const targetId = relation.to.fqcn || relation.to.name
+      // Only create edge if both nodes exist
+      return nodeIds.has(sourceId) && nodeIds.has(targetId)
+    })
+    .map((relation, index) => {
+      const sourceId = relation.from.fqcn || relation.from.name
+      const targetId = relation.to.fqcn || relation.to.name
+      const edgeColor = getEdgeColor(relation.type)
 
-    const edge = {
-      id: `edge-${index}-${sourceId}-${targetId}`,
-      source: sourceId,
-      target: targetId,
-      sourceHandle: 'bottom',
-      targetHandle: 'top',
-      type: 'smoothstep',
-      animated: false,
-      style: {
-        stroke: edgeColor,
-        strokeWidth: relation.isOwning ? 2.5 : 2,
-        strokeDasharray: relation.isOwning ? '0' : '5,5',
-      },
-      markerEnd: {
-        type: 'arrowclosed',
-        color: edgeColor,
-        width: 20,
-        height: 20,
-      },
-      data: {
-        type: relation.type,
-        typeLabel: getRelationTypeLabel(relation.type),
-        field: relation.field,
-        isOwning: relation.isOwning,
-      },
-    }
-
-    if (showLabels && props.entities.length < 100) {
-      edge.label = relation.field
-      edge.labelStyle = {
-        fill: edgeColor,
-        fontWeight: 600,
-        fontSize: 11,
+      const edge = {
+        id: `edge-${index}-${sourceId}-${targetId}`,
+        source: sourceId,
+        target: targetId,
+        sourceHandle: 'bottom',
+        targetHandle: 'top',
+        type: 'smoothstep',
+        animated: false,
+        style: {
+          stroke: edgeColor,
+          strokeWidth: relation.isOwning ? 2.5 : 2,
+          strokeDasharray: relation.isOwning ? '0' : '5,5',
+        },
+        markerEnd: {
+          type: 'arrowclosed',
+          color: edgeColor,
+          width: 20,
+          height: 20,
+        },
+        data: {
+          type: relation.type,
+          typeLabel: getRelationTypeLabel(relation.type),
+          field: relation.field,
+          isOwning: relation.isOwning,
+        },
       }
-      edge.labelBgStyle = {
-        fill: '#141414',
-        fillOpacity: 0.95,
-      }
-      edge.labelBgPadding = [4, 6]
-      edge.labelBgBorderRadius = 4
-    }
 
-    return edge
-  })
+      if (showLabels && props.entities.length < 100) {
+        edge.label = relation.field
+        edge.labelStyle = {
+          fill: edgeColor,
+          fontWeight: 600,
+          fontSize: 11,
+        }
+        edge.labelBgStyle = {
+          fill: '#141414',
+          fillOpacity: 0.95,
+        }
+        edge.labelBgPadding = [4, 6]
+        edge.labelBgBorderRadius = 4
+      }
+
+      return edge
+    })
 })
 
 async function calculateLayout() {
