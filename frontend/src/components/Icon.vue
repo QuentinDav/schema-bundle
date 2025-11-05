@@ -26,6 +26,7 @@ const iconMap = {
   'chevron-right': 'ChevronRightIcon',
   'chevron-up': 'ChevronUpIcon',
   'clipboard': 'ClipboardIcon',
+  'clock': 'ClockIcon',
   'code-bracket': 'CodeBracketIcon',
   'command-line': 'CommandLineIcon',
   'exclamation-circle': 'ExclamationCircleIcon',
@@ -38,6 +39,7 @@ const iconMap = {
   'key': 'KeyIcon',
   'light-bulb': 'LightBulbIcon',
   'link': 'LinkIcon',
+  'list-bullet': 'ListBulletIcon',
   'magnifying-glass': 'MagnifyingGlassIcon',
   'map': 'MapIcon',
   'minus': 'MinusIcon',
@@ -46,8 +48,10 @@ const iconMap = {
   'plus-circle': 'PlusCircleIcon',
   'sparkles': 'SparklesIcon',
   'squares-2x2': 'Squares2X2Icon',
+  'squares-plus': 'SquaresPlusIcon',
   'star': 'StarIcon',
   'table-cells': 'TableCellsIcon',
+  'user-group': 'UserGroupIcon',
   'x-mark': 'XMarkIcon',
 }
 
