@@ -1,12 +1,25 @@
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { VueFlow, useVueFlow, Panel } from '@vue-flow/core'
 import { Background } from '@vue-flow/background'
 import DatabaseTableNode from './DatabaseTableNode.vue'
+import RelationConfigPopover from './RelationConfigPopover.vue'
+import ContextMenu from './ContextMenu.vue'
 import Icon from './Icon.vue'
 import ELK from 'elkjs/lib/elk.bundled.js'
+import { useViewsStore } from '@/stores/views'
 
 const elk = new ELK()
+const viewsStore = useViewsStore()
+
+const showRelationPopover = ref(false)
+const relationPopoverPosition = ref({ x: 0, y: 0 })
+const pendingConnection = ref({ source: '', target: '', sourceHandle: null, targetHandle: null })
+
+const showContextMenu = ref(false)
+const contextMenuPosition = ref({ x: 0, y: 0 })
+const contextMenuItems = ref([])
+const contextMenuTarget = ref(null)
 
 const props = defineProps({
   entities: {
@@ -21,15 +34,19 @@ const props = defineProps({
     type: String,
     default: null,
   },
+  isPlaygroundMode: {
+    type: Boolean,
+    default: false,
+  },
 })
 
-const emit = defineEmits(['entity-click', 'entity-hover', 'entity-double-click'])
+const emit = defineEmits(['entity-click', 'entity-hover', 'entity-double-click', 'toggle-fullscreen', 'context-action'])
 
 const nodeTypes = {
   databaseTable: DatabaseTableNode
 }
 
-const { fitView, zoomIn, zoomOut, getViewport } = useVueFlow()
+const { fitView, zoomIn, zoomOut, getViewport, setViewport, getNodes, updateNode, addEdges, getEdges, getSelectedEdges, getSelectedNodes } = useVueFlow()
 
 function extractNamespace(fqcn) {
   const parts = fqcn.split('\\')
@@ -56,7 +73,7 @@ function getRelationTypeLabel(type) {
   return labels[type] || ''
 }
 
-const nodesWithLayout = ref([])
+const nodes = ref([])
 const currentEntitiesKey = ref('')
 const isCalculating = ref(false)
 const performanceMode = ref(false)
@@ -64,28 +81,6 @@ const detailLevel = ref('full')
 
 const shouldShowLabels = computed(() => {
   return detailLevel.value === 'full'
-})
-
-const nodes = computed(() => {
-  const entitiesKey = props.entities.map(e => e.fqcn || e.name).sort().join(',')
-
-  if (isCalculating.value && nodesWithLayout.value.length > 0) {
-    return nodesWithLayout.value
-  }
-
-  if (nodesWithLayout.value.length > 0 && entitiesKey === currentEntitiesKey.value) {
-    return nodesWithLayout.value
-  }
-
-  if (props.entities.length === 0) {
-    return []
-  }
-
-  if (nodesWithLayout.value.length > 0) {
-    return nodesWithLayout.value
-  }
-
-  return []
 })
 
 const edges = computed(() => {
@@ -107,20 +102,21 @@ const edges = computed(() => {
     .map((relation, index) => {
       const sourceId = relation.from.fqcn || relation.from.name
       const targetId = relation.to.fqcn || relation.to.name
-      const edgeColor = getEdgeColor(relation.type)
+      const isVirtual = relation.isVirtual || false
+      const edgeColor = isVirtual ? '#9333ea' : getEdgeColor(relation.type)
 
       const edge = {
         id: `edge-${index}-${sourceId}-${targetId}`,
         source: sourceId,
         target: targetId,
-        sourceHandle: 'bottom',
-        targetHandle: 'top',
+        sourceHandle: relation.sourceHandle || 'bottom',
+        targetHandle: relation.targetHandle || 'top',
         type: 'smoothstep',
-        animated: false,
+        animated: isVirtual,
         style: {
           stroke: edgeColor,
-          strokeWidth: relation.isOwning ? 2.5 : 2,
-          strokeDasharray: relation.isOwning ? '0' : '5,5',
+          strokeWidth: isVirtual ? 3 : (relation.isOwning ? 2.5 : 2),
+          strokeDasharray: isVirtual ? '8,4' : (relation.isOwning ? '0' : '5,5'),
         },
         markerEnd: {
           type: 'arrowclosed',
@@ -133,6 +129,7 @@ const edges = computed(() => {
           typeLabel: getRelationTypeLabel(relation.type),
           field: relation.field,
           isOwning: relation.isOwning,
+          isVirtual,
         },
       }
 
@@ -209,30 +206,86 @@ async function calculateLayout() {
   try {
     const layoutedGraph = await elk.layout(graph)
 
-    currentEntitiesKey.value = props.entities.map(e => e.fqcn || e.name).sort().join(',')
+    // Include entity content hash/version for playground mode to detect updates
+    const entitiesSignature = props.isPlaygroundMode
+      ? props.entities.map(e => {
+          const fqcn = e.fqcn || e.name
+          const fieldsHash = (e.fields || []).map(f => `${f.name}:${f.type}`).join('|')
+          return `${fqcn}:${e.name}:${fieldsHash}`
+        }).sort().join(',')
+      : props.entities.map(e => e.fqcn || e.name).sort().join(',')
 
-    nodesWithLayout.value = props.entities.map((entity) => {
-      const elkNode = layoutedGraph.children?.find(n => n.id === (entity.fqcn || entity.name))
+    const needsFullRecreation = entitiesSignature !== currentEntitiesKey.value || nodes.value.length === 0
 
-      return {
-        id: entity.fqcn || entity.name,
-        type: 'databaseTable',
-        position: {
-          x: elkNode?.x ?? 0,
-          y: elkNode?.y ?? 0,
-        },
-        data: {
-          name: entity.name,
-          table: entity.table,
-          fields: entity.fields || [],
-          namespace: extractNamespace(entity.fqcn || entity.name),
-          entity: entity,
-        },
-        draggable: true,
-        width: 280,
-        height: 80 + Math.min((entity.fields || []).length, 8) * 22,
+    currentEntitiesKey.value = entitiesSignature
+
+    if (needsFullRecreation) {
+      // Full recreation when entities change
+      nodes.value = props.entities.map((entity) => {
+        const elkNode = layoutedGraph.children?.find(n => n.id === (entity.fqcn || entity.name))
+        const entityFqcn = entity.fqcn || entity.name
+
+        // Check if we have a saved position for this entity
+        const savedPosition = viewsStore.currentLayout.nodes.get(entityFqcn)
+
+        return {
+          id: entityFqcn,
+          type: 'databaseTable',
+          position: savedPosition || {
+            x: elkNode?.x ?? 0,
+            y: elkNode?.y ?? 0,
+          },
+          data: {
+            name: entity.name,
+            table: entity.table,
+            fields: entity.fields || [],
+            namespace: extractNamespace(entityFqcn),
+            entity: entity,
+            isVirtual: entity.isVirtual || false,
+            isPlaygroundMode: props.isPlaygroundMode,
+          },
+          draggable: true,
+          selectable: props.isPlaygroundMode,
+          connectable: props.isPlaygroundMode,
+          width: 280,
+          height: 80 + Math.min((entity.fields || []).length, 8) * 22,
+        }
+      })
+    } else {
+      // Just update positions if entities are the same (e.g., when loading a view)
+      // Only update if we have saved positions, otherwise keep current positions
+      if (viewsStore.currentLayout.nodes.size > 0) {
+        nodes.value.forEach(node => {
+          const savedPosition = viewsStore.currentLayout.nodes.get(node.id)
+          if (savedPosition && typeof savedPosition.x === 'number' && typeof savedPosition.y === 'number') {
+            // Mutate existing position object instead of replacing it
+            node.position.x = savedPosition.x
+            node.position.y = savedPosition.y
+          }
+        })
       }
-    })
+
+      // Update node data (isPlaygroundMode, selectable and connectable)
+      nodes.value.forEach(node => {
+        node.data.isPlaygroundMode = props.isPlaygroundMode
+        node.selectable = props.isPlaygroundMode
+        node.connectable = props.isPlaygroundMode
+      })
+
+      // Restore viewport when switching views
+      if (viewsStore.currentLayout.viewport) {
+        const vp = viewsStore.currentLayout.viewport
+        if (typeof vp.x === 'number' && typeof vp.y === 'number' && typeof viewsStore.currentLayout.zoom === 'number') {
+          setTimeout(() => {
+            setViewport({
+              x: vp.x,
+              y: vp.y,
+              zoom: viewsStore.currentLayout.zoom
+            })
+          }, 50)
+        }
+      }
+    }
 
     if (props.entities.length > 50) {
       setTimeout(() => {
@@ -247,12 +300,31 @@ async function calculateLayout() {
   }
 }
 
-watch([() => props.entities, () => props.relations], () => {
+watch([() => props.entities, () => props.relations, () => props.isPlaygroundMode], () => {
   calculateLayout()
 }, { immediate: true, deep: true })
 
+// Watch for view changes and restore viewport
+watch(() => viewsStore.currentViewId, (newViewId) => {
+  if (newViewId && viewsStore.currentLayout.viewport) {
+    const vp = viewsStore.currentLayout.viewport
+    // Only restore viewport if values are valid
+    if (typeof vp.x === 'number' && typeof vp.y === 'number' && typeof viewsStore.currentLayout.zoom === 'number') {
+      setTimeout(() => {
+        setViewport({
+          x: vp.x,
+          y: vp.y,
+          zoom: viewsStore.currentLayout.zoom
+        })
+      }, 100)
+    }
+  }
+}, { immediate: false })
+
 function onNodeClick(event) {
-  emit('entity-click', event.node.data.entity)
+  if (!props.isPlaygroundMode) {
+    emit('entity-click', event.node.data.entity)
+  }
 }
 
 function onNodeDoubleClick(event) {
@@ -262,6 +334,252 @@ function onNodeDoubleClick(event) {
 function onNodeMouseEnter(event) {
   emit('entity-hover', event.node.data.entity)
 }
+
+function onConnect(connection) {
+  console.log('🔗 onConnect called!', connection)
+  const sourceEntity = props.entities.find(e => (e.fqcn || e.name) === connection.source)
+  const targetEntity = props.entities.find(e => (e.fqcn || e.name) === connection.target)
+
+  if (!sourceEntity || !targetEntity) {
+    return
+  }
+
+  pendingConnection.value = {
+    source: connection.source,
+    target: connection.target,
+    sourceHandle: connection.sourceHandle,
+    targetHandle: connection.targetHandle,
+    sourceName: sourceEntity.name,
+    targetName: targetEntity.name
+  }
+
+  console.log('📍 Connection handles:', {
+    sourceHandle: connection.sourceHandle,
+    targetHandle: connection.targetHandle
+  })
+
+  relationPopoverPosition.value = {
+    x: window.innerWidth / 2 - 160,
+    y: window.innerHeight / 2 - 150
+  }
+
+  showRelationPopover.value = true
+}
+
+function handleCreateRelation(config) {
+  viewsStore.addVirtualRelation({
+    source: pendingConnection.value.source,
+    target: pendingConnection.value.target,
+    sourceHandle: pendingConnection.value.sourceHandle,
+    targetHandle: pendingConnection.value.targetHandle,
+    type: config.type,
+    field: config.field,
+    isOwning: config.isOwning,
+    isVirtual: true
+  })
+
+  showRelationPopover.value = false
+  pendingConnection.value = { source: '', target: '', sourceHandle: null, targetHandle: null }
+}
+
+function handleCancelRelation() {
+  showRelationPopover.value = false
+  pendingConnection.value = { source: '', target: '', sourceHandle: null, targetHandle: null }
+}
+
+function isValidConnection(connection) {
+  console.log('🔍 isValidConnection called:', connection)
+  // Simple validation: source and target must be different
+  const isValid = connection.source !== connection.target
+  console.log('✅ Valid?', isValid)
+  return isValid
+}
+
+function onConnectStart(params) {
+  console.log('🚀 onConnectStart:', params)
+  console.log('📌 Starting from handle:', params.handleId, 'on node:', params.nodeId)
+}
+
+function onConnectEnd(event) {
+  console.log('🏁 onConnectEnd:', event)
+}
+
+function handleKeyDown(event) {
+  if (!props.isPlaygroundMode) return
+
+  // Delete or Backspace key
+  if (event.key === 'Delete' || event.key === 'Backspace') {
+    // Don't interfere with typing in input fields, textareas, or contenteditable elements
+    const target = event.target
+    if (
+      target.tagName === 'INPUT' ||
+      target.tagName === 'TEXTAREA' ||
+      target.isContentEditable ||
+      target.getAttribute('contenteditable') === 'true'
+    ) {
+      return
+    }
+
+    event.preventDefault()
+    event.stopPropagation()
+
+    const selectedNodes = getSelectedNodes.value
+    const selectedEdges = getSelectedEdges.value
+
+    if (selectedNodes && selectedNodes.length > 0) {
+      selectedNodes.forEach(node => {
+        viewsStore.removeVirtualEntity(node.id)
+      })
+    }
+
+    if (selectedEdges && selectedEdges.length > 0) {
+      selectedEdges.forEach(edge => {
+        viewsStore.removeVirtualRelation(edge.source, edge.target)
+      })
+    }
+  }
+}
+
+function handlePaneContextMenu(event) {
+  if (!props.isPlaygroundMode) return
+
+  event.preventDefault()
+
+  contextMenuTarget.value = { type: 'canvas' }
+  contextMenuPosition.value = { x: event.clientX, y: event.clientY }
+  contextMenuItems.value = [
+    { icon: 'plus-circle', label: 'Add Entity', action: 'add-entity' },
+    { type: 'separator' },
+    { icon: 'photo', label: 'Export PNG', action: 'export-png' },
+    { icon: 'arrow-down-tray', label: 'Export SVG', action: 'export-svg' },
+    { type: 'separator' },
+    { icon: 'arrows-pointing-out', label: 'Fit View', action: 'fit-view' },
+    { icon: 'arrows-pointing-out', label: 'Fullscreen Mode', action: 'fullscreen', shortcut: 'F' }
+  ]
+  showContextMenu.value = true
+}
+
+function handleNodeContextMenu({ event, node }) {
+  if (!props.isPlaygroundMode) return
+
+  event.preventDefault()
+
+  contextMenuTarget.value = { type: 'node', data: node }
+  contextMenuPosition.value = { x: event.clientX, y: event.clientY }
+
+  const items = []
+
+  // Edit is only for virtual entities
+  if (node.data.isVirtual) {
+    items.push({ icon: 'pencil-square', label: 'Edit Entity', action: 'edit-entity' })
+  }
+
+  items.push({ icon: 'document-duplicate', label: 'Copy Entity', action: 'copy-entity', shortcut: 'Ctrl+C', disabled: true })
+
+  // Always allow hiding/deleting entities
+  items.push({ type: 'separator' })
+  items.push({
+    icon: 'trash',
+    label: node.data.isVirtual ? 'Delete Entity' : 'Hide Entity',
+    action: 'delete-entity',
+    danger: true,
+    shortcut: 'Del'
+  })
+
+  contextMenuItems.value = items
+  showContextMenu.value = true
+}
+
+function handleEdgeContextMenu({ event, edge }) {
+  if (!props.isPlaygroundMode) return
+
+  event.preventDefault()
+
+  contextMenuTarget.value = { type: 'edge', data: edge }
+  contextMenuPosition.value = { x: event.clientX, y: event.clientY }
+
+  const items = []
+
+  // Allow editing virtual relations only, but allow hiding any relation
+  if (edge.data?.isVirtual) {
+    items.push({ icon: 'pencil-square', label: 'Edit Relation', action: 'edit-relation' })
+    items.push({ type: 'separator' })
+  }
+
+  items.push({
+    icon: 'trash',
+    label: edge.data?.isVirtual ? 'Delete Relation' : 'Hide Relation',
+    action: 'delete-relation',
+    danger: true,
+    shortcut: 'Del'
+  })
+
+  contextMenuItems.value = items
+  showContextMenu.value = true
+}
+
+function handleContextMenuAction(item) {
+  const target = contextMenuTarget.value
+
+  switch (item.action) {
+    case 'add-entity':
+      emit('context-action', 'add-entity')
+      break
+
+    case 'edit-entity':
+      emit('context-action', 'edit-entity', target.data)
+      break
+
+    case 'copy-entity':
+      console.log('TODO: Copy entity', target.data)
+      break
+
+    case 'delete-entity':
+      // Always allow hiding/deleting entities in playground mode
+      viewsStore.removeVirtualEntity(target.data.id)
+      break
+
+    case 'delete-relation':
+      // Always allow hiding/deleting relations in playground mode
+      viewsStore.removeVirtualRelation(target.data.source, target.data.target)
+      break
+
+    case 'edit-relation':
+      console.log('TODO: Edit relation modal', target.data)
+      break
+
+    case 'export-png':
+      exportPNG()
+      break
+
+    case 'export-svg':
+      exportSVG()
+      break
+
+    case 'fit-view':
+      handleFitView()
+      break
+
+    case 'fullscreen':
+      emit('toggle-fullscreen')
+      break
+  }
+
+  showContextMenu.value = false
+}
+
+function closeContextMenu() {
+  showContextMenu.value = false
+  contextMenuTarget.value = null
+}
+
+onMounted(() => {
+  window.addEventListener('keydown', handleKeyDown)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleKeyDown)
+})
 
 function exportSVG() {
   const vueFlowElement = document.querySelector('.vue-flow')
@@ -371,6 +689,22 @@ function handleZoomOut() {
   zoomOut({ duration: 300 })
 }
 
+function onNodeDragStop(event) {
+  console.log('🎯 onNodeDragStop called', event.node.id)
+  const entityFqcn = event.node.id
+  const { x, y } = event.node.position
+
+  // Always update the current layout (even without active view)
+  viewsStore.updateNodePosition(entityFqcn, x, y)
+}
+
+function onMoveEnd(event) {
+  const viewport = getViewport()
+
+  // Always update the current layout viewport (even without active view)
+  viewsStore.updateViewport(viewport.zoom, viewport.x, viewport.y)
+}
+
 defineExpose({
   fitView: handleFitView,
   zoomIn: handleZoomIn,
@@ -393,7 +727,7 @@ defineExpose({
     </div>
 
     <VueFlow
-      :nodes="nodes"
+      v-model:nodes="nodes"
       :edges="edges"
       :node-types="nodeTypes"
       :default-viewport="{ zoom: 1, x: 0, y: 0 }"
@@ -403,14 +737,23 @@ defineExpose({
       :zoom-on-scroll="true"
       :pan-on-scroll="false"
       :zoom-on-double-click="false"
-      :nodes-connectable="false"
+      :nodes-connectable="true"
       :nodes-draggable="true"
-      :elements-selectable="false"
+      :elements-selectable="props.isPlaygroundMode"
       :connect-on-click="false"
+      :delete-key-code="null"
+      :is-valid-connection="isValidConnection"
       @node-click="onNodeClick"
       @node-double-click="onNodeDoubleClick"
-      @node-mouse-enter="onNodeMouseEnter"
-      class="w-full h-full"
+      @node-drag-stop="onNodeDragStop"
+      @node-context-menu="handleNodeContextMenu"
+      @edge-context-menu="handleEdgeContextMenu"
+      @pane-context-menu="handlePaneContextMenu"
+      @move-end="onMoveEnd"
+      @connect="onConnect"
+      @connect-start="onConnectStart"
+      @connect-end="onConnectEnd"
+      class="w-full h-full basic-flow"
     >
       <Background
         pattern-color="#2a2a2a"
@@ -464,6 +807,25 @@ defineExpose({
         </div>
       </Panel>
     </VueFlow>
+
+    <!-- Relation Config Popover -->
+    <RelationConfigPopover
+      :is-open="showRelationPopover"
+      :position="relationPopoverPosition"
+      :source-entity="pendingConnection.sourceName"
+      :target-entity="pendingConnection.targetName"
+      @create="handleCreateRelation"
+      @cancel="handleCancelRelation"
+    />
+
+    <!-- Context Menu -->
+    <ContextMenu
+      :is-open="showContextMenu"
+      :position="contextMenuPosition"
+      :items="contextMenuItems"
+      @close="closeContextMenu"
+      @item-click="handleContextMenuAction"
+    />
   </div>
 </template>
 
@@ -473,40 +835,36 @@ defineExpose({
 </style>
 
 <style scoped>
-:deep(.vue-flow__background) {
-  background-color: var(--color-background);
-}
 
-:deep(.vue-flow__node.selected) {
-  box-shadow: none;
-}
-
-:deep(.vue-flow__edge-path) {
-  transition: stroke-width 0.2s ease;
-  stroke-linecap: round;
-}
-
-:deep(.vue-flow__edge:hover .vue-flow__edge-path) {
-  stroke-width: 4px !important;
-}
-
-:deep(.vue-flow__edge-text) {
-  font-size: 11px;
-}
-
-:deep(.vue-flow__edge-textbg) {
-  fill: var(--color-surface);
-  fill-opacity: 0.95;
-  rx: 4px;
-}
-
-:deep(.vue-flow__handle-connecting),
-:deep(.vue-flow__handle-valid),
+/* Show connection line during drag */
 :deep(.vue-flow__connectionline) {
-  display: none;
+  stroke: #9333ea;
+  stroke-width: 2;
+  stroke-dasharray: 5,5;
+  animation: dash 0.5s linear infinite;
 }
 
-:deep(.vue-flow__controls) {
-  display: none;
+@keyframes dash {
+  to {
+    stroke-dashoffset: -10;
+  }
+}
+
+/* Selected edges styling in playground mode */
+:deep(.vue-flow__edge.selected) {
+  z-index: 1001 !important;
+}
+
+:deep(.vue-flow__edge.selected path) {
+  stroke-width: 4 !important;
+  filter: drop-shadow(0 0 8px currentColor);
+}
+
+:deep(.vue-flow__edge.selectable) {
+  cursor: pointer;
+}
+
+:deep(.vue-flow__edge.selectable:hover path) {
+  stroke-width: 3.5 !important;
 }
 </style>

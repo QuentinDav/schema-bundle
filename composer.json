@@ -79,8 +79,7 @@
   "suggest": {
     "symfony/maker-bundle": "For generating custom entities",
     "symfony/security-bundle": "Required for role-based access control",
-    "doctrine/doctrine-migrations-bundle": "For managing database migrations",
-    "symfony/ai": "For AI-powered Natural Language to SQL generation (OpenAI, Anthropic, Azure, Gemini, VertexAI support)"
+    "doctrine/doctrine-migrations-bundle": "For managing database migrations"
   },
   "config": {
     "sort-packages": true,

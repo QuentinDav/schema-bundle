@@ -1,25 +1,32 @@
 <script setup>
-import { onMounted } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useSchemaStore } from '@/stores/schema'
 import { useCommentsStore } from '@/stores/comments'
 import AppHeader from '@/components/AppHeader.vue'
 import AppSidebar from '@/components/AppSidebar.vue'
 import TableDetails from '@/components/TableDetails.vue'
 import ToastContainer from '@/components/ToastContainer.vue'
+import CommandPalette from '@/components/CommandPalette.vue'
+import PlaygroundPanel from '@/components/PlaygroundPanel.vue'
 
 const schemaStore = useSchemaStore()
 const commentsStore = useCommentsStore()
+const commandPaletteRef = ref(null)
 
 onMounted(() => {
   schemaStore.fetchSchema()
   commentsStore.fetchComments()
   commentsStore.fetchUsers()
 })
+
+function openCommandPalette() {
+  commandPaletteRef.value?.open()
+}
 </script>
 
 <template>
   <div class="flex flex-col h-screen overflow-hidden bg-[var(--color-background)]">
-    <AppHeader />
+    <AppHeader @open-command-palette="openCommandPalette" />
 
     <div class="flex flex-1 overflow-hidden">
       <AppSidebar />
@@ -51,5 +58,7 @@ onMounted(() => {
 
     <TableDetails />
     <ToastContainer />
+    <CommandPalette ref="commandPaletteRef" />
+    <PlaygroundPanel />
   </div>
 </template>

@@ -21,7 +21,6 @@ final class SchemaExtractor
         foreach ($metadatas as $metadata) {
             $entityData = $this->extractEntity($metadata->getName());
 
-            // Transform to format expected by NL→SQL
             $entities[] = [
                 'name' => $this->getShortName($metadata->getName()),
                 'fqcn' => $metadata->getName(),

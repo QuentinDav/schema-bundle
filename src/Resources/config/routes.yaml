@@ -79,6 +79,61 @@ qd_snapshots_entity_history:
   requirements:
     fqcn: '.+'
 
+qd_migrations_entity_history:
+  path: /schema-doc/api/migrations/history/{fqcn}
+  controller: Qd\SchemaBundle\Controller\MigrationHistoryController::getEntityHistory
+  methods: [GET]
+  requirements:
+    fqcn: '.+'
+
+qd_migrations_all_history:
+  path: /schema-doc/api/migrations/history
+  controller: Qd\SchemaBundle\Controller\MigrationHistoryController::getAllHistory
+  methods: [GET]
+
+qd_migrations_stats:
+  path: /schema-doc/api/migrations/stats
+  controller: Qd\SchemaBundle\Controller\MigrationHistoryController::getStats
+  methods: [GET]
+
+qd_migrations_list:
+  path: /schema-doc/api/migrations/list
+  controller: Qd\SchemaBundle\Controller\MigrationHistoryController::listMigrations
+  methods: [GET]
+
+# Entity Aliases API
+qd_aliases_list:
+  path: /schema-doc/api/aliases
+  controller: Qd\SchemaBundle\Controller\EntityAliasController::list
+  methods: [GET]
+
+qd_aliases_by_entity:
+  path: /schema-doc/api/aliases/entity/{fqcn}
+  controller: Qd\SchemaBundle\Controller\EntityAliasController::byEntity
+  methods: [GET]
+  requirements:
+    fqcn: '.+'
+
+qd_aliases_map:
+  path: /schema-doc/api/aliases/map
+  controller: Qd\SchemaBundle\Controller\EntityAliasController::getMap
+  methods: [GET]
+
+qd_aliases_create:
+  path: /schema-doc/api/aliases
+  controller: Qd\SchemaBundle\Controller\EntityAliasController::create
+  methods: [POST]
+
+qd_aliases_update:
+  path: /schema-doc/api/aliases/{id}
+  controller: Qd\SchemaBundle\Controller\EntityAliasController::update
+  methods: [PUT, PATCH]
+
+qd_aliases_delete:
+  path: /schema-doc/api/aliases/{id}
+  controller: Qd\SchemaBundle\Controller\EntityAliasController::delete
+  methods: [DELETE]
+
 qd_schema_assets:
   path: /schema-doc/{path}
   requirements:

@@ -70,7 +70,6 @@ HELP
         $io->text($prompt);
 
         try {
-            // Extract entities
             $io->section('Extracting Schema');
             $entities = $this->schemaExtractor->extract();
             $io->success(sprintf('Found %d entities', count($entities)));
@@ -79,7 +78,6 @@ HELP
                 $this->displayEntities($io, $entities);
             }
 
-            // Generate SQL
             if ($compare) {
                 return $this->compareStrategies($io, $prompt, $entities, $showCost);
             }
@@ -110,7 +108,6 @@ HELP
             $io->text("Strategy: <info>{$strategy}</info>");
         }
 
-        // Estimate cost if requested
         if ($showCost && $strategy !== 'local') {
             $estimate = $this->orchestrator->estimateCost($prompt, $strategy ?? 'ai');
             if ($estimate !== null) {
@@ -127,10 +124,8 @@ HELP
             }
         }
 
-        // Generate
         $result = $this->orchestrator->generate($prompt, $entities, $strategy);
 
-        // Display result
         $this->displayResult($io, $result, $showCost);
 
         return $result->success ? Command::SUCCESS : Command::FAILURE;
@@ -156,7 +151,6 @@ HELP
             $results[$strategy] = $result;
         }
 
-        // Display comparison table
         $io->section('Comparison Results');
         $table = new Table($output = $io);
         $table->setHeaders(['Strategy', 'Success', 'Confidence', 'Provider', 'Cost']);
@@ -177,7 +171,6 @@ HELP
 
         $table->render();
 
-        // Display best result
         $bestResult = null;
         $bestConfidence = -1;
 

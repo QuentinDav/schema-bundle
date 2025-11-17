@@ -43,39 +43,18 @@ services:
   Qd\SchemaBundle\Service\NlToSql\PromptBuilder:
     autowire: true
 
-  Qd\SchemaBundle\Service\NlToSql\Generator\LocalRuleBasedGenerator:
-    autowire: true
-
-  Qd\SchemaBundle\Service\NlToSql\Generator\SymfonyAiGenerator:
-    autowire: true
+  # Migration Analyzer service
+  Qd\SchemaBundle\Service\MigrationAnalyzer:
     arguments:
-      $aiPlatform: '@?qd_schema.ai_platform'  # Optional service, created by user
-      $model: '%qd_schema.nl_to_sql.ai.model%'
-      $maxTokens: '%qd_schema.nl_to_sql.ai.max_tokens%'
-      $temperature: '%qd_schema.nl_to_sql.ai.temperature%'
+      $projectDir: '%kernel.project_dir%'
+      $logger: '@logger'
+      $migrationDir: null  # Will use default: %kernel.project_dir%/migrations
+    tags:
+      - { name: 'monolog.logger', channel: 'qd_schema' }
 
+  # NL to SQL Orchestrator
+  # The AI generator service (qd_schema.ai_generator) is created dynamically
+  # by QdSchemaExtension based on the configured provider
   Qd\SchemaBundle\Service\NlToSql\NlToSqlOrchestrator:
     arguments:
-      $localGenerator: '@Qd\SchemaBundle\Service\NlToSql\Generator\LocalRuleBasedGenerator'
-      $aiGenerator: '@Qd\SchemaBundle\Service\NlToSql\Generator\SymfonyAiGenerator'
-      $strategy: '%qd_schema.nl_to_sql.strategy%'
-      $confidenceThreshold: '%qd_schema.nl_to_sql.confidence_threshold%'
-
-  # Example AI Platform configuration (user should override this in their services.yaml)
-  # Uncomment and configure based on your provider:
-  #
-  # For OpenAI:
-  # qd_schema.ai_platform:
-  #   class: Symfony\AI\Platform\OpenAi\Client
-  #   factory: ['Symfony\AI\Platform\Bridge\OpenAi\PlatformFactory', 'create']
-  #   arguments:
-  #     - '%env(OPENAI_API_KEY)%'
-  #     - '@?http_client'
-  #
-  # For Anthropic:
-  # qd_schema.ai_platform:
-  #   class: Symfony\AI\Platform\Anthropic\Client
-  #   factory: ['Symfony\AI\Platform\Bridge\Anthropic\PlatformFactory', 'create']
-  #   arguments:
-  #     - '%env(ANTHROPIC_API_KEY)%'
-  #     - '@?http_client'
+      $aiGenerator: '@?qd_schema.ai_generator'

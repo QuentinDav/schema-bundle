@@ -4,17 +4,25 @@ declare(strict_types=1);
 
 namespace Qd\SchemaBundle\Service\NlToSql;
 
+use Qd\SchemaBundle\Repository\EntityAliasRepository;
+
 /**
  * Analyzes natural language queries to extract entities, fields, and relations.
  *
  * This is the backend equivalent of the frontend NLP logic (frontend/src/utils/nlp).
  * It tokenizes the user's prompt and identifies:
- * - Which entities are mentioned
+ * - Which entities are mentioned (including via aliases)
  * - Which fields are referenced
  * - What relations need to be joined
+ *
+ * Supports entity aliases to improve query understanding and reduce token usage.
  */
 final class NlQueryAnalyzer
 {
+    public function __construct(
+        private readonly EntityAliasRepository $aliasRepository
+    ) {
+    }
     /**
      * Common SQL keywords to ignore during entity/field detection.
      */
@@ -51,28 +59,28 @@ final class NlQueryAnalyzer
      *     tokens: array<string>,
      *     mentionedEntities: array<array<string, mixed>>,
      *     mentionedFields: array<array{entity: array<string, mixed>, field: string}>,
-     *     lexicon: array<string, array<string>>
+     *     lexicon: array<string, array<string>>,
+     *     resolvedAliases: array<string, string>
      * }
      */
     public function analyze(string $prompt, array $allEntities): array
     {
-        // 1. Tokenize the prompt
+        $aliasMap = $this->aliasRepository->getAliasToEntityMap();
+
         $tokens = $this->tokenize($prompt);
 
-        // 2. Build lexicon (entity name variations)
-        $lexicon = $this->buildLexicon($allEntities);
+        $lexicon = $this->buildLexicon($allEntities, $aliasMap);
 
-        // 3. Resolve entities mentioned in the prompt
-        $mentionedEntities = $this->resolveEntities($tokens, $allEntities, $lexicon);
+        $mentionedEntities = $this->resolveEntities($tokens, $allEntities, $lexicon, $aliasMap);
 
-        // 4. Resolve fields mentioned in the prompt
-        $mentionedFields = $this->resolveFields($tokens, $allEntities, $mentionedEntities);
+        $mentionedFields = $this->resolveFields($tokens, $allEntities, $mentionedEntities, $aliasMap);
 
         return [
             'tokens' => $tokens,
             'mentionedEntities' => $mentionedEntities,
             'mentionedFields' => $mentionedFields,
             'lexicon' => $lexicon,
+            'resolvedAliases' => $this->getResolvedAliases($tokens, $aliasMap),
         ];
     }
 
@@ -83,10 +91,8 @@ final class NlQueryAnalyzer
      */
     private function tokenize(string $text): array
     {
-        // Convert to lowercase and split by spaces/punctuation
         $text = mb_strtolower($text);
 
-        // Split by whitespace and common punctuation, keeping the text
         $tokens = preg_split('/[\s,;.!?()]+/', $text, -1, PREG_SPLIT_NO_EMPTY);
 
         return array_values(array_filter($tokens ?? []));
@@ -99,17 +105,20 @@ final class NlQueryAnalyzer
      * - Singular/plural forms
      * - With/without underscores
      * - Table name variants
+     * - User-defined aliases
      *
      * @param array<int, array<string, mixed>> $entities
+     * @param array<string, string> $aliasMap Map of alias => entityFqcn
      * @return array<string, array<string>> Map of entity name to variations
      */
-    private function buildLexicon(array $entities): array
+    private function buildLexicon(array $entities, array $aliasMap): array
     {
         $lexicon = [];
 
         foreach ($entities as $entity) {
             $name = $entity['name'] ?? '';
             $tableName = $entity['tableName'] ?? '';
+            $fqcn = $entity['fqcn'] ?? '';
 
             if (empty($name)) {
                 continue;
@@ -120,18 +129,20 @@ final class NlQueryAnalyzer
                 mb_strtolower($tableName),
             ];
 
-            // Add plural forms (simple english pluralization)
             $variations[] = $this->pluralize(mb_strtolower($name));
             $variations[] = $this->pluralize(mb_strtolower($tableName));
 
-            // Add singular forms
             $variations[] = $this->singularize(mb_strtolower($name));
 
-            // Remove underscores
             $variations[] = str_replace('_', '', mb_strtolower($name));
             $variations[] = str_replace('_', '', mb_strtolower($tableName));
 
-            // Remove duplicates and empty strings
+            foreach ($aliasMap as $alias => $entityFqcn) {
+                if ($entityFqcn === $fqcn) {
+                    $variations[] = mb_strtolower($alias);
+                }
+            }
+
             $variations = array_unique(array_filter($variations));
 
             $lexicon[$name] = array_values($variations);
@@ -146,9 +157,10 @@ final class NlQueryAnalyzer
      * @param array<string> $tokens
      * @param array<int, array<string, mixed>> $allEntities
      * @param array<string, array<string>> $lexicon
+     * @param array<string, string> $aliasMap Map of alias => entityFqcn
      * @return array<array<string, mixed>> Entities that were found in the prompt
      */
-    private function resolveEntities(array $tokens, array $allEntities, array $lexicon): array
+    private function resolveEntities(array $tokens, array $allEntities, array $lexicon, array $aliasMap): array
     {
         $found = [];
         $foundNames = [];
@@ -156,12 +168,26 @@ final class NlQueryAnalyzer
         foreach ($tokens as $token) {
             $token = mb_strtolower($token);
 
-            // Skip SQL keywords and stop words
             if ($this->isIgnoredWord($token)) {
                 continue;
             }
 
-            // Check if token matches any entity variation
+            if (isset($aliasMap[$token])) {
+                $entityFqcn = $aliasMap[$token];
+
+                foreach ($allEntities as $entity) {
+                    if (($entity['fqcn'] ?? '') === $entityFqcn) {
+                        $entityName = $entity['name'] ?? '';
+                        if (!in_array($entityName, $foundNames, true)) {
+                            $found[] = $entity;
+                            $foundNames[] = $entityName;
+                        }
+                        break;
+                    }
+                }
+                continue;
+            }
+
             foreach ($allEntities as $entity) {
                 $entityName = $entity['name'] ?? '';
                 if (empty($entityName) || in_array($entityName, $foundNames, true)) {
@@ -186,9 +212,10 @@ final class NlQueryAnalyzer
      * @param array<string> $tokens
      * @param array<int, array<string, mixed>> $allEntities
      * @param array<array<string, mixed>> $mentionedEntities
+     * @param array<string, string> $aliasMap Map of alias => entityFqcn
      * @return array<array{entity: array<string, mixed>, field: string}>
      */
-    private function resolveFields(array $tokens, array $allEntities, array $mentionedEntities): array
+    private function resolveFields(array $tokens, array $allEntities, array $mentionedEntities, array $aliasMap): array
     {
         $fields = [];
         $seenFields = [];
@@ -196,18 +223,15 @@ final class NlQueryAnalyzer
         foreach ($tokens as $i => $token) {
             $token = mb_strtolower($token);
 
-            // Skip SQL keywords and stop words
             if ($this->isIgnoredWord($token)) {
                 continue;
             }
 
-            // Try to match field patterns like "email", "user email", "email of user"
-            // Pattern 1: "field of entity" (e.g., "email of user")
             if (isset($tokens[$i + 1], $tokens[$i + 2]) && mb_strtolower($tokens[$i + 1]) === 'of') {
                 $fieldName = $token;
                 $entityToken = mb_strtolower($tokens[$i + 2]);
 
-                $entity = $this->findEntityByToken($entityToken, $allEntities);
+                $entity = $this->findEntityByToken($entityToken, $allEntities, $aliasMap);
                 if ($entity && $this->entityHasField($entity, $fieldName)) {
                     $key = $entity['name'] . '.' . $fieldName;
                     if (!in_array($key, $seenFields, true)) {
@@ -217,12 +241,11 @@ final class NlQueryAnalyzer
                 }
             }
 
-            // Pattern 2: "entity field" or "entity.field" (e.g., "user email")
             if (isset($tokens[$i + 1])) {
                 $entityToken = $token;
                 $fieldName = mb_strtolower($tokens[$i + 1]);
 
-                $entity = $this->findEntityByToken($entityToken, $allEntities);
+                $entity = $this->findEntityByToken($entityToken, $allEntities, $aliasMap);
                 if ($entity && $this->entityHasField($entity, $fieldName)) {
                     $key = $entity['name'] . '.' . $fieldName;
                     if (!in_array($key, $seenFields, true)) {
@@ -232,7 +255,6 @@ final class NlQueryAnalyzer
                 }
             }
 
-            // Pattern 3: Field alone (check in mentioned entities first, then all)
             $entitiesToCheck = !empty($mentionedEntities) ? $mentionedEntities : $allEntities;
             foreach ($entitiesToCheck as $entity) {
                 if ($this->entityHasField($entity, $token)) {
@@ -240,7 +262,7 @@ final class NlQueryAnalyzer
                     if (!in_array($key, $seenFields, true)) {
                         $fields[] = ['entity' => $entity, 'field' => $token];
                         $seenFields[] = $key;
-                        break; // Only take first match per field
+                        break;
                     }
                 }
             }
@@ -250,15 +272,25 @@ final class NlQueryAnalyzer
     }
 
     /**
-     * Find an entity by a token (could be entity name or variation).
+     * Find an entity by a token (could be entity name, variation, or alias).
      *
      * @param string $token
      * @param array<int, array<string, mixed>> $entities
+     * @param array<string, string> $aliasMap Map of alias => entityFqcn
      * @return array<string, mixed>|null
      */
-    private function findEntityByToken(string $token, array $entities): ?array
+    private function findEntityByToken(string $token, array $entities, array $aliasMap): ?array
     {
         $token = mb_strtolower($token);
+
+        if (isset($aliasMap[$token])) {
+            $entityFqcn = $aliasMap[$token];
+            foreach ($entities as $entity) {
+                if (($entity['fqcn'] ?? '') === $entityFqcn) {
+                    return $entity;
+                }
+            }
+        }
 
         foreach ($entities as $entity) {
             $name = mb_strtolower($entity['name'] ?? '');
@@ -268,7 +300,6 @@ final class NlQueryAnalyzer
                 return $entity;
             }
 
-            // Check pluralized forms
             if ($token === $this->pluralize($name) || $token === $this->singularize($name)) {
                 return $entity;
             }
@@ -350,5 +381,32 @@ final class NlQueryAnalyzer
         }
 
         return $word;
+    }
+
+    /**
+     * Get which aliases were resolved in the tokens.
+     * Useful for logging and debugging which aliases helped resolve entities.
+     *
+     * @param array<string> $tokens
+     * @param array<string, string> $aliasMap Map of alias => entityFqcn
+     * @return array<string, string> Map of resolved alias => entityFqcn
+     */
+    private function getResolvedAliases(array $tokens, array $aliasMap): array
+    {
+        $resolved = [];
+
+        foreach ($tokens as $token) {
+            $token = mb_strtolower($token);
+
+            if ($this->isIgnoredWord($token)) {
+                continue;
+            }
+
+            if (isset($aliasMap[$token])) {
+                $resolved[$token] = $aliasMap[$token];
+            }
+        }
+
+        return $resolved;
     }
 }

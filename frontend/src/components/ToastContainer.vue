@@ -1,28 +1,19 @@
 <script setup>
 import { useToastStore } from '@/stores/toast'
+import {CheckCircleIcon, XMarkIcon, ExclamationCircleIcon} from "@heroicons/vue/24/outline";
 
 const toastStore = useToastStore()
 
 function getIcon(type) {
   switch (type) {
     case 'success':
-      return `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-        <path d="M20 6L9 17l-5-5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>`
+      return `<CheckCircleIcon class="h-20 w-20 text-green-500"/>`
     case 'error':
-      return `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-        <circle cx="12" cy="12" r="10" stroke-width="2"/>
-        <path d="M15 9l-6 6M9 9l6 6" stroke-width="2" stroke-linecap="round"/>
-      </svg>`
+      return `<XMarkIcon class="h-20 w-20 text-red-500"/>`
     case 'warning':
-      return `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-        <path d="M12 9v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke-width="2" stroke-linecap="round"/>
-      </svg>`
+      return `<ExclamationCircleIcon class="h-20 w-20 text-orange-500"/>`
     default:
-      return `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-        <circle cx="12" cy="12" r="10" stroke-width="2"/>
-        <path d="M12 16v-4m0-4h.01" stroke-width="2" stroke-linecap="round"/>
-      </svg>`
+      return `<XMarkIcon class="h-20 w-20 text-red-500"/>`
   }
 }
 

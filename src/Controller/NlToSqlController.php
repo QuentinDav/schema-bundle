@@ -32,7 +32,7 @@ final class NlToSqlController extends AbstractController
      * Body:
      * {
      *   "prompt": "Get all users with their addresses",
-     *   "strategy": "ai" // optional: "local", "ai", "hybrid"
+     *   "strategy": "ai"
      * }
      */
     public function generate(Request $request): JsonResponse
@@ -45,7 +45,6 @@ final class NlToSqlController extends AbstractController
             ], Response::HTTP_FORBIDDEN);
         }
 
-        // Parse request
         $data = json_decode($request->getContent(), true);
 
         if (!is_array($data)) {
@@ -59,7 +58,6 @@ final class NlToSqlController extends AbstractController
         $prompt = $data['prompt'] ?? '';
         $strategy = $data['strategy'] ?? null;
 
-        // Validate prompt
         if (empty(trim($prompt))) {
             return $this->json([
                 'success' => false,
@@ -68,7 +66,6 @@ final class NlToSqlController extends AbstractController
             ], Response::HTTP_BAD_REQUEST);
         }
 
-        // Validate strategy
         if ($strategy !== null && !in_array($strategy, ['local', 'ai', 'hybrid'], true)) {
             return $this->json([
                 'success' => false,
@@ -78,10 +75,8 @@ final class NlToSqlController extends AbstractController
         }
 
         try {
-            // Extract entities from Doctrine
             $entities = $this->schemaExtractor->extract();
 
-            // Generate SQL
             $result = $this->orchestrator->generate($prompt, $entities, $strategy);
 
             return $this->json($result->toArray());
@@ -102,7 +97,7 @@ final class NlToSqlController extends AbstractController
      * Body:
      * {
      *   "prompt": "Get all users with their addresses",
-     *   "strategy": "ai" // optional
+     *   "strategy": "ai"
      * }
      */
     public function estimateCost(Request $request): JsonResponse
@@ -115,7 +110,6 @@ final class NlToSqlController extends AbstractController
             ], Response::HTTP_FORBIDDEN);
         }
 
-        // Parse request
         $data = json_decode($request->getContent(), true);
 
         if (!is_array($data)) {
@@ -129,7 +123,6 @@ final class NlToSqlController extends AbstractController
         $prompt = $data['prompt'] ?? '';
         $strategy = $data['strategy'] ?? 'ai';
 
-        // Validate prompt
         if (empty(trim($prompt))) {
             return $this->json([
                 'success' => false,

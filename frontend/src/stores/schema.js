@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed, shallowRef } from 'vue'
+import { usePlaygroundStore } from './playground'
 
 export function getRelationTypeName(type) {
   const types = {
@@ -68,15 +69,26 @@ function buildRelationIndex(entities) {
 }
 
 export const useSchemaStore = defineStore('schema', () => {
-  const entities = ref([])
+  const rawEntities = ref([])
   const loading = ref(false)
   const error = ref(null)
   const selectedEntity = ref(null)
   const focusedEntity = ref(null)
   const searchQuery = ref('')
-  const selectedEntities = ref(new Set()) // Multi-selection support
+  const selectedEntities = ref(new Set())
 
   const relationIndex = shallowRef(null)
+
+  const entities = computed(() => {
+    try {
+      const playgroundStore = usePlaygroundStore()
+      if (playgroundStore.isActive) {
+        return playgroundStore.playgroundSchema
+      }
+    } catch (e) {
+    }
+    return rawEntities.value
+  })
 
   const filteredEntities = computed(() => {
     if (!searchQuery.value) return entities.value
@@ -228,12 +240,11 @@ export const useSchemaStore = defineStore('schema', () => {
       if (!res.ok) throw new Error('API error')
 
       const data = await res.json()
-      entities.value = data.entities || []
+      rawEntities.value = data.entities || []
 
       relationIndex.value = buildRelationIndex(entities.value)
     } catch (e) {
       error.value = e.message
-      console.error('Error fetching schema:', e)
     } finally {
       loading.value = false
     }
@@ -292,6 +303,7 @@ export const useSchemaStore = defineStore('schema', () => {
 
   return {
     entities,
+    rawEntities,
     loading,
     error,
     selectedEntity,

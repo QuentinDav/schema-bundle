@@ -69,7 +69,6 @@ export const useCommentsStore = defineStore('comments', () => {
       comments.value = data.comments || []
     } catch (e) {
       error.value = e.message
-      console.error('Error fetching comments:', e)
       toastStore.error('Failed to load comments')
       comments.value = []
     } finally {
@@ -100,7 +99,6 @@ export const useCommentsStore = defineStore('comments', () => {
       return newComment
     } catch (e) {
       error.value = e.message
-      console.error('Error adding comment:', e)
       toastStore.error('Failed to add comment')
       throw e
     }
@@ -117,7 +115,6 @@ export const useCommentsStore = defineStore('comments', () => {
       toastStore.success('Comment deleted successfully')
     } catch (e) {
       error.value = e.message
-      console.error('Error deleting comment:', e)
       toastStore.error('Failed to delete comment')
       throw e
     }
@@ -141,7 +138,6 @@ export const useCommentsStore = defineStore('comments', () => {
       }))
     } catch (e) {
       error.value = e.message
-      console.error('Error fetching users:', e)
       users.value = []
     } finally {
       loadingUsers.value = false

@@ -29,6 +29,7 @@ const iconMap = {
   'clock': 'ClockIcon',
   'code-bracket': 'CodeBracketIcon',
   'command-line': 'CommandLineIcon',
+  'document-duplicate': 'DocumentDuplicateIcon',
   'exclamation-circle': 'ExclamationCircleIcon',
   'exclamation-triangle': 'ExclamationTriangleIcon',
   'eye': 'EyeIcon',
@@ -43,6 +44,7 @@ const iconMap = {
   'magnifying-glass': 'MagnifyingGlassIcon',
   'map': 'MapIcon',
   'minus': 'MinusIcon',
+  'pencil-square': 'PencilSquareIcon',
   'photo': 'PhotoIcon',
   'plus': 'PlusIcon',
   'plus-circle': 'PlusCircleIcon',
@@ -51,6 +53,7 @@ const iconMap = {
   'squares-plus': 'SquaresPlusIcon',
   'star': 'StarIcon',
   'table-cells': 'TableCellsIcon',
+  'trash': 'TrashIcon',
   'user-group': 'UserGroupIcon',
   'x-mark': 'XMarkIcon',
 }
@@ -59,7 +62,6 @@ const iconComponent = computed(() => {
   const heroiconName = iconMap[props.name]
 
   if (!heroiconName) {
-    console.warn(`Icon "${props.name}" not found in iconMap`)
     return null
   }
 

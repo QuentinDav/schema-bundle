@@ -29,19 +29,14 @@ final class PromptBuilder
      */
     public function buildPrompt(string $userPrompt, array $allEntities): array
     {
-        // Analyze the user's prompt to extract entities and fields
         $analysis = $this->queryAnalyzer->analyze($userPrompt, $allEntities);
 
-        // Determine which entities to include in the schema
         $relevantEntities = $this->getRelevantEntities($analysis, $allEntities);
 
-        // Build JSON schema
         $schemaJson = $this->buildSchemaJson($relevantEntities);
 
-        // Build system prompt with structured format
         $systemPrompt = $this->buildSystemPrompt($schemaJson);
 
-        // Build user prompt
         $userPromptFormatted = $this->buildUserPrompt($userPrompt);
 
         return [
@@ -135,7 +130,6 @@ USERPROMPT;
                 ];
             }
 
-            // Add relations/associations
             foreach ($entity['associations'] ?? [] as $assoc) {
                 $entityData['relations'][] = [
                     'field' => $assoc['fieldName'] ?? '',
@@ -155,10 +149,15 @@ USERPROMPT;
     /**
      * Get relevant entities based on analysis.
      *
-     * If entities are mentioned in the prompt, return those + their related entities.
-     * Otherwise, return all entities (fallback for broad queries).
+     * Uses NlQueryAnalyzer (with alias support) to detect mentioned entities.
+     * Returns only relevant entities + their direct relations to reduce token usage.
      *
-     * @param array{mentionedEntities: array, mentionedFields: array} $analysis
+     * When entities are detected via aliases or direct mentions:
+     * - Include the mentioned entities
+     * - Include entities with direct relations (1-hop away)
+     * - Optionally include entities in the join path between mentioned entities
+     *
+     * @param array{mentionedEntities: array, mentionedFields: array, resolvedAliases: array} $analysis
      * @param array<int, array<string, mixed>> $allEntities
      * @return array<int, array<string, mixed>>
      */
@@ -166,19 +165,17 @@ USERPROMPT;
     {
         $mentionedEntities = $analysis['mentionedEntities'] ?? [];
         $mentionedFields = $analysis['mentionedFields'] ?? [];
+        $resolvedAliases = $analysis['resolvedAliases'] ?? [];
 
-        // If nothing was detected, return all entities (AI will figure it out)
         if (empty($mentionedEntities) && empty($mentionedFields)) {
             return $allEntities;
         }
 
-        // Collect mentioned entity names
         $relevantEntityNames = [];
         foreach ($mentionedEntities as $entity) {
             $relevantEntityNames[] = $entity['name'] ?? '';
         }
 
-        // Add entities from mentioned fields
         foreach ($mentionedFields as $fieldInfo) {
             $entity = $fieldInfo['entity'] ?? null;
             if ($entity) {
@@ -189,18 +186,15 @@ USERPROMPT;
             }
         }
 
-        // Find related entities (entities that have relations to mentioned entities)
         $extendedEntities = [];
         foreach ($allEntities as $entity) {
             $entityName = $entity['name'] ?? '';
 
-            // Include if mentioned
             if (in_array($entityName, $relevantEntityNames, true)) {
                 $extendedEntities[$entityName] = $entity;
                 continue;
             }
 
-            // Include if has relation to a mentioned entity
             foreach ($entity['associations'] ?? [] as $assoc) {
                 $target = $assoc['targetEntity'] ?? '';
                 if (in_array($target, $relevantEntityNames, true)) {
@@ -210,8 +204,7 @@ USERPROMPT;
             }
         }
 
-        // If we have too few entities (< 2), return all (better for AI to have full context)
-        if (count($extendedEntities) < 2 && count($allEntities) <= 20) {
+        if (empty($extendedEntities)) {
             return $allEntities;
         }
 

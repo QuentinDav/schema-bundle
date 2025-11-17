@@ -2,11 +2,13 @@
 import { computed, ref, onMounted } from 'vue'
 import { useSchemaStore } from '@/stores/schema'
 import { useReleasesStore } from '@/stores/releases'
+import { usePlaygroundStore } from '@/stores/playground'
 import CreateReleaseModal from './CreateReleaseModal.vue'
 import Icon from './Icon.vue'
 
 const schemaStore = useSchemaStore()
 const releasesStore = useReleasesStore()
+const playgroundStore = usePlaygroundStore()
 
 const searchValue = computed({
   get: () => schemaStore.searchQuery,
@@ -43,18 +45,16 @@ function handleReleaseCreated(result) {
     </div>
 
     <div class="flex-1 max-w-md">
-      <div class="relative">
-        <Icon name="magnifying-glass" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-text-tertiary)]" />
-        <input
-          v-model="searchValue"
-          type="text"
-          placeholder="Search tables, columns..."
-          class="w-full h-9 pl-10 pr-4 bg-[var(--color-surface-raised)] border border-[var(--color-border)] rounded-lg text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-tertiary)] focus:outline-none focus:border-[var(--color-primary)] transition-colors"
-        />
-        <span v-if="searchValue" class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[var(--color-text-tertiary)] bg-[var(--color-surface-hover)] px-2 py-0.5 rounded">
-          {{ schemaStore.filteredEntities.length }}
+      <button
+        @click="$emit('open-command-palette')"
+        class="relative w-full h-9 pl-10 pr-4 bg-[var(--color-surface-raised)] border border-[var(--color-border)] rounded-lg text-sm text-left hover:border-[var(--color-primary)] transition-colors group cursor-pointer"
+      >
+        <Icon name="magnifying-glass" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-text-tertiary)] group-hover:text-[var(--color-primary)]" />
+        <span class="text-[var(--color-text-tertiary)]">Search entities, fields...</span>
+        <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[var(--color-text-tertiary)] bg-[var(--color-surface-hover)] px-2 py-0.5 rounded font-mono">
+          ⌘K
         </span>
-      </div>
+      </button>
     </div>
 
     <div class="flex items-center gap-6 flex-shrink-0">

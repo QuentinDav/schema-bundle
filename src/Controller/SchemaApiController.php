@@ -2,16 +2,22 @@
 namespace Qd\SchemaBundle\Controller;
 
 use Doctrine\ORM\EntityManagerInterface;
+use Qd\SchemaBundle\Repository\EntityAliasRepository;
 use Symfony\Component\HttpFoundation\JsonResponse;
 
 final class SchemaApiController
 {
-    public function __construct(private EntityManagerInterface $em) {}
+    public function __construct(
+        private EntityManagerInterface $em,
+        private EntityAliasRepository $aliasRepository
+    ) {}
 
     public function schema(): JsonResponse
     {
         $metas = $this->em->getMetadataFactory()->getAllMetadata();
         $out = ['entities' => []];
+
+        $aliasesGrouped = $this->aliasRepository->findAllGroupedByEntity();
 
         foreach ($metas as $m) {
             if(str_starts_with($m->getTableName(), 'qd_')) {
@@ -19,13 +25,15 @@ final class SchemaApiController
             }
             $name = substr($m->getName(), strrpos($m->getName(), '\\') + 1);
 
+            $fqcn = $m->getName();
             $entity = [
                 'name'   => $name,
-                'fqcn'   => $m->getName(),
+                'fqcn'   => $fqcn,
                 'table'  => $m->getTableName(),
                 'pk'     => $m->getIdentifierFieldNames(),
                 'fields' => [],
                 'relations' => [],
+                'aliases' => $aliasesGrouped[$fqcn] ?? [],
             ];
 
             foreach ($m->getFieldNames() as $field) {

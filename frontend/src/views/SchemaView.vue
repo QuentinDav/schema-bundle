@@ -1,21 +1,39 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useSchemaStore } from '@/stores/schema'
+import { useViewsStore } from '@/stores/views'
 import SchemaGraph from '@/components/SchemaGraph.vue'
 import EntitySidebar from '@/components/EntitySidebar.vue'
+import PlaygroundSidebar from '@/components/PlaygroundSidebar.vue'
 import PathFinderPanel from '@/components/PathFinderPanel.vue'
+import ViewManager from '@/components/ViewManager.vue'
+import ViewDropdown from '@/components/ViewDropdown.vue'
 import Icon from '@/components/Icon.vue'
 import { getEntitiesFromPaths, getRelationsFromPaths } from '@/utils/pathFinder'
 
 const schemaStore = useSchemaStore()
+const viewsStore = useViewsStore()
 
 const viewMode = ref('schema')
 const pathFinderPaths = ref([])
+const viewManagerRef = ref(null)
+const playgroundSidebarRef = ref(null)
+const schemaGraphRef = ref(null)
+const isFullscreen = ref(false)
+
+const isPlaygroundMode = computed(() => {
+  return viewsStore.currentView?.type === 'playground'
+})
 
 onMounted(() => {
-  if (schemaStore.selectedEntities.size === 0 && schemaStore.entities.length > 0) {
-    const firstFive = schemaStore.entities
-      .slice(0, Math.min(5, schemaStore.entities.length))
+  // Use filtered entities if views are active
+  const baseEntities = viewsStore.currentViewId
+    ? viewsStore.filteredEntities
+    : schemaStore.entities
+
+  if (schemaStore.selectedEntities.size === 0 && baseEntities.length > 0) {
+    const firstFive = baseEntities
+      .slice(0, Math.min(5, baseEntities.length))
       .map(e => e.fqcn || e.name)
     schemaStore.setSelectedEntities(firstFive)
   }
@@ -25,15 +43,56 @@ const graphEntities = computed(() => {
   if (viewMode.value === 'pathfinder' && pathFinderPaths.value.length > 0) {
     return getEntitiesFromPaths(pathFinderPaths.value)
   }
-  if (schemaStore.selectedEntities.size === 0) return []
-  return schemaStore.selectedEntitiesWithRelations
+
+  // Use playground entities if in playground mode
+  if (isPlaygroundMode.value) {
+    // Get all playground entities (includes virtual and filters removed)
+    const allPlaygroundEntities = viewsStore.playgroundEntities
+
+    // Filter by selected entities
+    if (schemaStore.selectedEntities.size === 0) {
+      return []
+    }
+
+    const selectedFqcns = new Set(schemaStore.selectedEntities)
+    return allPlaygroundEntities.filter(entity => {
+      const fqcn = entity.fqcn || entity.name
+      return selectedFqcns.has(fqcn) || entity.isVirtual
+    })
+  }
+
+  let entities = []
+
+  // If a view is active, apply its filters
+  if (viewsStore.currentViewId || viewsStore.currentFilter.boundedContexts.length > 0 || viewsStore.currentFilter.excludeEntities.size > 0) {
+    // Get filtered entities
+    const filteredFqcns = new Set(viewsStore.filteredEntities.map(e => e.fqcn || e.name))
+
+    // Return only selected entities that pass the filter
+    if (schemaStore.selectedEntities.size === 0) {
+      entities = []
+    } else {
+      entities = schemaStore.selectedEntitiesWithRelations.filter(entity => {
+        return filteredFqcns.has(entity.fqcn || entity.name)
+      })
+    }
+  } else {
+    // Default behavior
+    if (schemaStore.selectedEntities.size === 0) {
+      entities = []
+    } else {
+      entities = schemaStore.selectedEntitiesWithRelations
+    }
+  }
+
+  return entities
 })
 
 const graphRelations = computed(() => {
   if (viewMode.value === 'pathfinder' && pathFinderPaths.value.length > 0) {
     return getRelationsFromPaths(pathFinderPaths.value, graphEntities.value)
   }
-  const rels = []
+  let rels = []
   const seenPairs = new Set()
   const visibleEntities = graphEntities.value
   const entityMapByFqcn = new Map(visibleEntities.map(e => [e.fqcn || e.name, e]))
@@ -55,12 +114,46 @@ const graphRelations = computed(() => {
               field: relation.field,
               type: relation.type,
               isOwning: relation.isOwning,
+              isVirtual: false
             })
           }
         }
       })
     }
   })
+
+  // Add virtual relations if in playground mode
+  if (isPlaygroundMode.value && viewsStore.currentView?.virtualChanges?.addedRelations) {
+    viewsStore.currentView.virtualChanges.addedRelations.forEach((vRel) => {
+      const source = entityMapByFqcn.get(vRel.source) || entityMapByName.get(vRel.source)
+      const target = entityMapByFqcn.get(vRel.target) || entityMapByName.get(vRel.target)
+
+      if (source && target) {
+        rels.push({
+          from: source,
+          to: target,
+          field: vRel.field,
+          type: vRel.type,
+          isOwning: vRel.isOwning,
+          isVirtual: true,
+          sourceHandle: vRel.sourceHandle,
+          targetHandle: vRel.targetHandle
+        })
+      }
+    })
+  }
+
+  // Filter out removed relations in playground mode
+  if (isPlaygroundMode.value && viewsStore.currentView?.virtualChanges?.removedRelations) {
+    const removedSet = new Set(viewsStore.currentView.virtualChanges.removedRelations)
+    rels = rels.filter(rel => {
+      const fromId = rel.from.fqcn || rel.from.name
+      const toId = rel.to.fqcn || rel.to.name
+      const key = `${fromId}|${toId}`
+      return !removedSet.has(key)
+    })
+  }
+
   return rels
 })
 
@@ -90,11 +183,65 @@ function handlePathsFound(paths) {
 function handleShowPath(paths) {
   pathFinderPaths.value = paths
 }
+
+function openViewManager() {
+  viewManagerRef.value?.open()
+}
+
+function toggleFullscreen() {
+  isFullscreen.value = !isFullscreen.value
+}
+
+function handleContextAction(action, data) {
+  switch (action) {
+    case 'add-entity':
+      playgroundSidebarRef.value?.openAddEntityModal()
+      break
+    case 'edit-entity':
+      const entity = data.data.entity
+      playgroundSidebarRef.value?.openEditEntityModal(entity)
+      break
+  }
+}
+
+function handleKeyDown(event) {
+  // Toggle fullscreen with F key (only in playground mode)
+  if (event.key === 'f' && isPlaygroundMode.value && !event.ctrlKey && !event.metaKey && !event.altKey) {
+    // Make sure we're not typing in an input field
+    if (event.target.tagName !== 'INPUT' && event.target.tagName !== 'TEXTAREA') {
+      event.preventDefault()
+      toggleFullscreen()
+    }
+  }
+
+  // Exit fullscreen with Escape
+  if (event.key === 'Escape' && isFullscreen.value) {
+    isFullscreen.value = false
+  }
+}
+
+onMounted(() => {
+  window.addEventListener('keydown', handleKeyDown)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleKeyDown)
+})
 </script>
 
 <template>
-  <div class="flex h-full bg-[var(--color-background)]">
-    <aside class="w-[35%] min-w-[320px] max-w-[500px] flex-shrink-0 bg-[var(--color-surface)] flex flex-col border-r border-[var(--color-border)]">
+  <div class="flex h-full bg-[var(--color-background)]" :class="{ 'fullscreen-mode': isFullscreen }">
+    <!-- Fullscreen exit button -->
+    <button
+      v-if="isFullscreen"
+      @click="toggleFullscreen"
+      class="fixed top-4 right-4 z-[9999] w-10 h-10 flex items-center justify-center bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] border border-[var(--color-border)] hover:border-[var(--color-primary)] rounded-lg shadow-2xl transition-all"
+      title="Exit Fullscreen (Esc)"
+    >
+      <Icon name="x-mark" class="w-5 h-5 text-[var(--color-text-primary)]" />
+    </button>
+
+    <aside v-if="!isFullscreen" class="w-[35%] min-w-[320px] max-w-[500px] flex-shrink-0 bg-[var(--color-surface)] flex flex-col border-r border-[var(--color-border)]">
       <div class="flex border-b-2 border-[var(--color-border)]">
         <button
           @click="switchMode('schema')"
@@ -108,10 +255,13 @@ function handleShowPath(paths) {
         </button>
         <button
           @click="switchMode('pathfinder')"
+          :disabled="isPlaygroundMode"
           class="flex-1 flex items-center justify-center gap-2 px-4 py-3 text-sm font-semibold transition-all border-b-2 -mb-0.5"
-          :class="viewMode === 'pathfinder'
-            ? 'text-[var(--color-primary)] border-[var(--color-primary)] bg-[var(--color-surface)]'
-            : 'text-[var(--color-text-secondary)] border-transparent bg-[var(--color-surface-raised)] hover:text-[var(--color-text-primary)]'"
+          :class="isPlaygroundMode
+            ? 'text-[var(--color-text-tertiary)] border-transparent bg-[var(--color-surface-raised)] opacity-50 cursor-not-allowed'
+            : viewMode === 'pathfinder'
+              ? 'text-[var(--color-primary)] border-[var(--color-primary)] bg-[var(--color-surface)]'
+              : 'text-[var(--color-text-secondary)] border-transparent bg-[var(--color-surface-raised)] hover:text-[var(--color-text-primary)]'"
         >
           <Icon name="map" class="w-4 h-4" />
           <span>Path Finder</span>
@@ -119,7 +269,8 @@ function handleShowPath(paths) {
       </div>
 
       <div class="flex-1 overflow-hidden">
-        <EntitySidebar v-if="viewMode === 'schema'" />
+        <PlaygroundSidebar ref="playgroundSidebarRef" v-if="viewMode === 'schema' && isPlaygroundMode" />
+        <EntitySidebar v-else-if="viewMode === 'schema'" />
         <PathFinderPanel
           v-else-if="viewMode === 'pathfinder'"
           @paths-found="handlePathsFound"
@@ -129,7 +280,7 @@ function handleShowPath(paths) {
     </aside>
 
     <main class="flex-1 flex flex-col overflow-hidden">
-      <div v-if="graphEntities.length > 0" class="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-hover)] text-white shadow-md z-10">
+      <div v-if="graphEntities.length > 0 && !isFullscreen" class="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-hover)] text-white shadow-md z-10">
         <div v-if="viewMode === 'schema'" class="flex items-center gap-2 text-sm">
           <Icon name="check-circle" class="w-4 h-4" />
           <span>
@@ -152,14 +303,16 @@ function handleShowPath(paths) {
           </span>
         </div>
 
-        <button
-          v-if="viewMode === 'schema'"
-          @click="schemaStore.clearSelectedEntities()"
-          class="flex items-center gap-2 px-3 py-1.5 bg-white/20 hover:bg-white/30 border border-white/30 hover:border-white/50 rounded-lg text-sm font-semibold transition-all hover:-translate-y-0.5"
-        >
-          <Icon name="x-mark" class="w-4 h-4" />
-          <span>Clear</span>
-        </button>
+        <div v-if="viewMode === 'schema'" class="flex items-center gap-2">
+          <ViewDropdown @open-manager="openViewManager" />
+          <button
+            @click="schemaStore.clearSelectedEntities()"
+            class="flex items-center gap-2 px-3 py-1.5 bg-white/20 hover:bg-white/30 border border-white/30 hover:border-white/50 rounded-lg text-sm font-semibold transition-all hover:-translate-y-0.5"
+          >
+            <Icon name="x-mark" class="w-4 h-4" />
+            <span>Clear</span>
+          </button>
+        </div>
       </div>
 
       <div class="flex-1 relative overflow-hidden bg-gradient-to-b from-[var(--color-surface-raised)] to-[var(--color-background)]">
@@ -211,14 +364,21 @@ function handleShowPath(paths) {
         </div>
 
         <SchemaGraph
+          ref="schemaGraphRef"
           v-else
           :entities="graphEntities"
           :relations="graphRelations"
           :focused-entity="null"
+          :is-playground-mode="isPlaygroundMode"
           @entity-click="handleEntityClick"
           @entity-double-click="handleEntityDoubleClick"
+          @toggle-fullscreen="toggleFullscreen"
+          @context-action="handleContextAction"
         />
       </div>
     </main>
+
+    <!-- ViewManager Sidebar (hidden by default) -->
+    <ViewManager ref="viewManagerRef" />
   </div>
 </template>

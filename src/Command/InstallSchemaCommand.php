@@ -5,6 +5,7 @@ namespace Qd\SchemaBundle\Command;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaTool;
 use Qd\SchemaBundle\Entity\Comment;
+use Qd\SchemaBundle\Entity\EntityAlias;
 use Qd\SchemaBundle\Entity\Release;
 use Qd\SchemaBundle\Entity\Snapshot;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -41,7 +42,7 @@ final class InstallSchemaCommand extends Command
         $existing = array_map('strtolower', $sm->listTableNames());
         $toCreateMetas = [];
 
-        foreach ([Comment::class, Snapshot::class, Release::class] as $class) {
+        foreach ([Comment::class, Snapshot::class, Release::class, EntityAlias::class] as $class) {
             $meta = $this->em->getClassMetadata($class);
             if (!in_array(strtolower($meta->getTableName()), $existing, true)) {
                 $toCreateMetas[] = $meta;

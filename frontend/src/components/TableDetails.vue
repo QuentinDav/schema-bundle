@@ -4,6 +4,8 @@ import { useSchemaStore, getRelationTypeName } from '@/stores/schema'
 import { useCommentsStore } from '@/stores/comments'
 import MentionTextarea from './MentionTextarea.vue'
 import CommentText from './CommentText.vue'
+import MigrationTimeline from './MigrationTimeline.vue'
+import AliasesTab from './AliasesTab.vue'
 
 const schemaStore = useSchemaStore()
 const commentsStore = useCommentsStore()
@@ -12,6 +14,7 @@ const entity = computed(() => schemaStore.selectedEntity)
 const newCommentText = ref('')
 const isSubmitting = ref(false)
 const showSystemComments = ref(true)
+const activeTab = ref('comments') // 'comments', 'history', or 'aliases'
 
 const filteredComments = computed(() => {
   if (showSystemComments.value) return commentsStore.activeComments
@@ -209,65 +212,111 @@ function deleteComment(commentId) {
             </div>
           </div>
 
-          <div class="w-[400px] flex flex-col bg-[var(--color-surface-raised)]">
-            <div class="flex items-center gap-2 p-4 border-b border-[var(--color-border)]">
-              <svg class="w-5 h-5 text-[var(--color-primary)]" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke-width="2"/>
-              </svg>
-              <h4 class="text-sm font-semibold text-[var(--color-text-primary)]">Comments ({{ commentsStore.activeComments.length }})</h4>
-            </div>
-
-            <div class="p-3 border-b border-[var(--color-border)]">
-              <label class="flex items-center gap-2 text-xs text-[var(--color-text-secondary)] cursor-pointer">
-                <input type="checkbox" v-model="showSystemComments" class="w-4 h-4 accent-[var(--color-primary)] cursor-pointer"/>
-                <span>Show system comments</span>
-              </label>
-            </div>
-
-            <div class="flex-1 overflow-y-auto p-4 space-y-3">
-              <div v-if="filteredComments.length === 0" class="flex flex-col items-center justify-center h-full text-center text-[var(--color-text-tertiary)]">
-                <svg class="w-10 h-10 mb-2" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <div class="w-[450px] flex flex-col bg-[var(--color-surface-raised)]">
+            <!-- Tabs Header -->
+            <div class="flex items-center border-b border-[var(--color-border)] bg-[var(--color-surface)]">
+              <button
+                @click="activeTab = 'comments'"
+                class="flex-1 flex items-center justify-center gap-2 p-4 text-sm font-semibold transition-colors border-b-2"
+                :class="activeTab === 'comments' ? 'border-[var(--color-primary)] text-[var(--color-primary)]' : 'border-transparent text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'"
+              >
+                <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                   <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke-width="2"/>
                 </svg>
-                <p class="text-sm font-medium">No comments yet</p>
-                <span class="text-xs">Be the first to add a comment!</span>
+                <span>Comments</span>
+                <span class="px-2 py-0.5 text-xs font-bold rounded-full bg-[var(--color-primary-light)] text-[var(--color-primary)]">
+                  {{ commentsStore.activeComments.length }}
+                </span>
+              </button>
+
+              <button
+                @click="activeTab = 'history'"
+                class="flex-1 flex items-center justify-center gap-2 p-4 text-sm font-semibold transition-colors border-b-2"
+                :class="activeTab === 'history' ? 'border-[var(--color-primary)] text-[var(--color-primary)]' : 'border-transparent text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'"
+              >
+                <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                  <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <span>History</span>
+              </button>
+
+              <button
+                @click="activeTab = 'aliases'"
+                class="flex-1 flex items-center justify-center gap-2 p-4 text-sm font-semibold transition-colors border-b-2"
+                :class="activeTab === 'aliases' ? 'border-[var(--color-primary)] text-[var(--color-primary)]' : 'border-transparent text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'"
+              >
+                <span class="text-lg">🏷️</span>
+                <span>Aliases</span>
+                <span v-if="entity?.aliases?.length > 0" class="px-2 py-0.5 text-xs font-bold rounded-full bg-[var(--color-primary-light)] text-[var(--color-primary)]">
+                  {{ entity.aliases.length }}
+                </span>
+              </button>
+            </div>
+
+            <!-- Comments Tab Content -->
+            <div v-if="activeTab === 'comments'" class="flex flex-col flex-1 overflow-hidden">
+              <div class="p-3 border-b border-[var(--color-border)]">
+                <label class="flex items-center gap-2 text-xs text-[var(--color-text-secondary)] cursor-pointer">
+                  <input type="checkbox" v-model="showSystemComments" class="w-4 h-4 accent-[var(--color-primary)] cursor-pointer"/>
+                  <span>Show system comments</span>
+                </label>
               </div>
 
-              <div v-for="comment in filteredComments" :key="comment.id" class="p-3 rounded-lg" :class="comment.isSystem ? 'bg-[var(--color-warning-light)] border border-[var(--color-warning)]/20' : 'bg-[var(--color-surface)] border border-[var(--color-border)]'">
-                <div class="flex items-start justify-between mb-2">
-                  <div class="flex items-center gap-2">
-                    <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white" :class="comment.isSystem ? 'bg-[var(--color-warning)]' : 'bg-[var(--color-primary)]'">
-                      {{ comment.author.charAt(0).toUpperCase() }}
+              <div class="flex-1 overflow-y-auto p-4 space-y-3">
+                <div v-if="filteredComments.length === 0" class="flex flex-col items-center justify-center h-full text-center text-[var(--color-text-tertiary)]">
+                  <svg class="w-10 h-10 mb-2" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke-width="2"/>
+                  </svg>
+                  <p class="text-sm font-medium">No comments yet</p>
+                  <span class="text-xs">Be the first to add a comment!</span>
+                </div>
+
+                <div v-for="comment in filteredComments" :key="comment.id" class="p-3 rounded-lg" :class="comment.isSystem ? 'bg-[var(--color-warning-light)] border border-[var(--color-warning)]/20' : 'bg-[var(--color-surface)] border border-[var(--color-border)]'">
+                  <div class="flex items-start justify-between mb-2">
+                    <div class="flex items-center gap-2">
+                      <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white" :class="comment.isSystem ? 'bg-[var(--color-warning)]' : 'bg-[var(--color-primary)]'">
+                        {{ comment.author.charAt(0).toUpperCase() }}
+                      </div>
+                      <div>
+                        <div class="text-sm font-semibold text-[var(--color-text-primary)]">{{ comment.author }}</div>
+                        <div class="text-xs text-[var(--color-text-tertiary)]">{{ formatDate(comment.createdAt) }}</div>
+                      </div>
                     </div>
-                    <div>
-                      <div class="text-sm font-semibold text-[var(--color-text-primary)]">{{ comment.author }}</div>
-                      <div class="text-xs text-[var(--color-text-tertiary)]">{{ formatDate(comment.createdAt) }}</div>
-                    </div>
+                    <button @click="deleteComment(comment.id)" class="p-1 text-[var(--color-text-tertiary)] hover:text-[var(--color-danger)] transition-colors">
+                      <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path d="M3 6h18M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6M10 11v6M14 11v6" stroke-width="2"/>
+                      </svg>
+                    </button>
                   </div>
-                  <button @click="deleteComment(comment.id)" class="p-1 text-[var(--color-text-tertiary)] hover:text-[var(--color-danger)] transition-colors">
-                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                      <path d="M3 6h18M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6M10 11v6M14 11v6" stroke-width="2"/>
+                  <CommentText :text="comment.content" :is-system="comment.isSystem"/>
+                </div>
+              </div>
+
+              <div class="p-4 border-t border-[var(--color-border)] bg-[var(--color-surface)]">
+                <MentionTextarea v-model="newCommentText" placeholder="Write a comment... (/ to mention)" :disabled="isSubmitting" :users="commentsStore.users" :fields="entity?.fields || []"/>
+                <div class="flex items-center justify-between mt-2">
+                  <span class="text-xs" :class="newCommentText.length > 500 ? 'text-[var(--color-danger)] font-semibold' : 'text-[var(--color-text-tertiary)]'">
+                    {{ newCommentText.length }}/500
+                  </span>
+                  <button @click="submitComment" :disabled="!newCommentText.trim() || isSubmitting || newCommentText.length > 500" class="flex items-center gap-2 px-4 py-2 bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white text-sm font-medium rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                    <svg v-if="!isSubmitting" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                      <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" stroke-width="2"/>
                     </svg>
+                    <div v-else class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                    {{ isSubmitting ? 'Sending...' : 'Send' }}
                   </button>
                 </div>
-                <CommentText :text="comment.content" :is-system="comment.isSystem"/>
               </div>
             </div>
 
-            <div class="p-4 border-t border-[var(--color-border)] bg-[var(--color-surface)]">
-              <MentionTextarea v-model="newCommentText" placeholder="Write a comment... (/ to mention)" :disabled="isSubmitting" :users="commentsStore.users" :fields="entity?.fields || []"/>
-              <div class="flex items-center justify-between mt-2">
-                <span class="text-xs" :class="newCommentText.length > 500 ? 'text-[var(--color-danger)] font-semibold' : 'text-[var(--color-text-tertiary)]'">
-                  {{ newCommentText.length }}/500
-                </span>
-                <button @click="submitComment" :disabled="!newCommentText.trim() || isSubmitting || newCommentText.length > 500" class="flex items-center gap-2 px-4 py-2 bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white text-sm font-medium rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed">
-                  <svg v-if="!isSubmitting" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" stroke-width="2"/>
-                  </svg>
-                  <div v-else class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                  {{ isSubmitting ? 'Sending...' : 'Send' }}
-                </button>
-              </div>
+            <!-- History Tab Content -->
+            <div v-if="activeTab === 'history'" class="flex-1 overflow-y-auto p-4">
+              <MigrationTimeline v-if="entity" :entity-fqcn="entity.fqcn" />
+            </div>
+
+            <!-- Aliases Tab Content -->
+            <div v-if="activeTab === 'aliases'" class="flex-1 overflow-y-auto">
+              <AliasesTab v-if="entity" :entity="entity" />
             </div>
           </div>
         </div>
