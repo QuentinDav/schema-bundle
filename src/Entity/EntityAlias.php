@@ -16,8 +16,6 @@ use Symfony\Component\Validator\Constraints as Assert;
  */
 #[ORM\Entity(repositoryClass: 'Qd\SchemaBundle\Repository\EntityAliasRepository')]
 #[ORM\Table(name: 'qd_entity_alias')]
-#[ORM\Index(name: 'idx_entity_fqcn', columns: ['entityFqcn'])]
-#[ORM\Index(name: 'idx_alias', columns: ['alias'])]
 #[UniqueEntity(fields: ['alias'], message: 'This alias is already used by another entity.')]
 #[ORM\HasLifecycleCallbacks]
 class EntityAlias
